@@ -1,18 +1,16 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import Link from "next/link"
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import Link from "next/link";
 
-interface ProductCardProps {
-  id: string
-  name: string
-  price: number
-  image: string
-  category: string
+interface CategoryCardProps {
+  id: string;
+  name: string;
+  description?: string;
+  image?: string;
 }
 
-export default function ProductCard({ id, name, price, image, category }: ProductCardProps) {
+export default function CategoryCard({ id, name, description, image }: CategoryCardProps) {
   return (
-    <Link href={`/product/${id}`} className="group">
+    <Link href={`/product?category=${encodeURIComponent(name)}`} className="group">
       <Card className="rounded-2xl border border-gray-200 bg-white shadow-sm transition-all h-full hover:shadow-md hover:scale-[1.015]">
         <CardHeader className="p-0">
           <div className="aspect-square overflow-hidden rounded-t-2xl">
@@ -24,13 +22,10 @@ export default function ProductCard({ id, name, price, image, category }: Produc
           </div>
         </CardHeader>
         <CardContent className="p-4 space-y-2">
-          <Badge variant="outline" className="text-xs px-2 py-0.5 rounded-full">
-            {category || "Uncategorized"}
-          </Badge>
           <h3 className="text-base font-semibold leading-tight truncate">{name}</h3>
-          <p className="text-sm text-muted-foreground">Rp {price.toLocaleString()}</p>
+          <p className="text-sm text-muted-foreground truncate">{description || 'Lihat produk'}</p>
         </CardContent>
       </Card>
     </Link>
-  )
+  );
 }

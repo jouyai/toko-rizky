@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase';
 import ProductCard from '@/components/product/ProductCard';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton'; // <-- Impor Skeleton
+import CategoryCard from '@/components/category/CategoryCard';
 
 interface Product {
   id: string;
@@ -23,6 +28,8 @@ interface Category {
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
   // Fetch products
   useEffect(() => {
@@ -32,6 +39,7 @@ export default function Home() {
         ...doc.data(),
       })) as Product[];
       setProducts(data);
+      setLoadingProducts(false);
     });
     return () => unsub();
   }, []);
@@ -44,7 +52,7 @@ export default function Home() {
         ...doc.data(),
       })) as Category[];
 
-      // Inject image from one of the products if category image missing
+      // Inject image from one of the products if category image is missing
       const updated = categoryData.map((cat) => {
         if (cat.image) return cat;
 
@@ -59,32 +67,45 @@ export default function Home() {
       });
 
       setCategories(updated);
+      setLoadingCategories(false);
     });
 
     return () => unsub();
   }, [products]);
+  
+  // Skeleton component for loading state
+  const CardSkeleton = () => (
+    <div className="flex flex-col space-y-3">
+      <Skeleton className="h-[225px] w-full rounded-xl" />
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-[200px]" />
+        <Skeleton className="h-4 w-[150px]" />
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-24">
-      {/* Hero */}
-      <section className="relative h-[600px] rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center">
-        <div className="text-center px-6">
+    <div className="space-y-16">
+      {/* Hero Section */}
+      <section className="relative h-[500px] rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center p-6">
+        <div className="text-center">
           <h1 className="text-5xl font-extrabold sm:text-7xl">Welcome to Toko Rizky</h1>
-          <p className="mt-6 text-xl max-w-xl mx-auto">Discover our amazing collection of products and enjoy exclusive deals.</p>
-          <a
-            href="/products"
-            className="mt-10 inline-block rounded-full bg-white text-indigo-600 px-10 py-4 font-semibold shadow-lg hover:bg-gray-100 transition"
-          >
-            Shop Now
-          </a>
+          <p className="mt-6 text-xl max-w-2xl mx-auto">Discover our amazing collection of products and enjoy exclusive deals.</p>
+          <Link href="/product">
+            <Button size="lg" className="mt-10 bg-white text-indigo-600 hover:bg-gray-100 px-10 py-6 text-lg font-semibold shadow-lg">
+              Shop Now
+            </Button>
+          </Link>
         </div>
       </section>
 
-      {/* Featured Products */}
+      {/* Featured Products Section */}
       <section>
         <h2 className="text-3xl font-bold mb-8">Featured Products</h2>
-        {products.length === 0 ? (
-          <p className="text-gray-500">Loading products...</p>
+        {loadingProducts ? (
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {products.slice(0, 4).map((product) => (
@@ -101,34 +122,23 @@ export default function Home() {
         )}
       </section>
 
-      {/* Categories */}
-      <section className="mt-20">
-        <h2 className="text-3xl font-bold mb-8">Belanja Berdasarkan Kategori</h2>
-
-        {categories.length === 0 ? (
-          <p className="text-gray-500">Kategori belum tersedia</p>
+      {/* Categories Section */}
+      <section>
+        <h2 className="text-3xl font-bold mb-8">Shop by Category</h2>
+        {loadingCategories ? (
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+             {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {categories.map((category) => (
-              <a
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {categories.slice(0, 4).map((category) => (
+              <CategoryCard
                 key={category.id}
-                href={`/product?category=${encodeURIComponent(category.name)}`} // 🔥 ganti ini
-                className="group rounded-xl overflow-hidden border bg-white shadow-sm hover:shadow-lg transition-shadow"
-              >
-                <div className="relative aspect-video overflow-hidden">
-                  <img
-                    src={category.image}
-                    alt={category.name}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition">
-                    {category.name}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">{category.description}</p>
-                </div>
-              </a>
+                id={category.id}
+                name={category.name}
+                description={category.description}
+                image={category.image}
+              />
             ))}
           </div>
         )}

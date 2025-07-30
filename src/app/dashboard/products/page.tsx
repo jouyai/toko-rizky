@@ -1,52 +1,78 @@
 'use client';
 
-import {
-  collection,
-  addDoc,
-  deleteDoc,
-  updateDoc,
-  doc,
-  onSnapshot,
-  query,
-  where,
-  getDocs,
-} from 'firebase/firestore';
 import { db } from '@/firebase';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { toast } from 'sonner';
 
-interface Product {
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Skema validasi menggunakan Zod
+const productSchema = z.object({
+  name: z.string().min(3, { message: 'Nama produk minimal 3 karakter.' }),
+  description: z.string().optional(),
+  price: z.coerce.number().positive({ message: 'Harga harus lebih dari 0.' }),
+  stock: z.coerce.number().min(0, { message: 'Stok tidak boleh negatif.' }),
+  image: z.string().url({ message: 'URL gambar tidak valid.' }).optional().or(z.literal('')),
+  category: z.string().optional(),
+});
+
+type ProductFormValues = z.infer<typeof productSchema>;
+
+interface Product extends ProductFormValues {
   id: string;
-  name: string;
-  description: string;
-  price: number;
-  stock: number;
-  image?: string;
-  category?: string;
 }
 
-interface Category {
-  id: string;
-  name: string;
-}
+// Komponen Skeleton untuk form
+const FormSkeleton = () => (
+    <Card>
+        <CardHeader>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-full mt-2" />
+        </CardHeader>
+        <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
+        </CardContent>
+    </Card>
+);
+
 
 export default function ProductDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    price: 0,
-    stock: 0,
-    image: '',
-    category: '',
-  });
   const [editId, setEditId] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false); // <-- State baru untuk client-side render
+
+  // Set isClient menjadi true hanya setelah komponen terpasang di browser
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      price: 0,
+      stock: 0,
+      image: '',
+      category: '',
+    },
+  });
 
   useEffect(() => {
     const unsubProd = onSnapshot(collection(db, 'products'), (snapshot) => {
@@ -57,130 +83,217 @@ export default function ProductDashboard() {
       setProducts(data);
     });
 
-    const unsubCat = onSnapshot(collection(db, 'categories'), (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        name: doc.data().name,
-      })) as Category[];
-      setCategories(data);
-    });
-
-    return () => {
-      unsubProd();
-      unsubCat();
-    };
+    return () => unsubProd();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: name === 'price' || name === 'stock' ? Number(value) : value,
-    }));
-  };
-
   const ensureCategoryExists = async (categoryName: string) => {
+    if (!categoryName || categoryName.trim() === '') return;
     const q = query(collection(db, 'categories'), where('name', '==', categoryName));
     const snapshot = await getDocs(q);
-    if (snapshot.empty && categoryName.trim() !== '') {
+    if (snapshot.empty) {
       await addDoc(collection(db, 'categories'), { name: categoryName });
-      toast.success(`Kategori baru "${categoryName}" ditambahkan!`);
+      toast.info(`Kategori baru "${categoryName}" ditambahkan.`);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { name, price, stock, category } = form;
-    if (!name || price <= 0 || stock < 0) return toast.error('Isi data produk dengan benar');
-
+  const onSubmit = async (data: ProductFormValues) => {
     try {
-      if (category) await ensureCategoryExists(category);
+      if (data.category) await ensureCategoryExists(data.category);
 
       if (editId) {
-        await updateDoc(doc(db, 'products', editId), form);
-        toast.success('Produk berhasil diupdate!');
+        await updateDoc(doc(db, 'products', editId), data);
+        toast.success('Produk berhasil diperbarui!');
         setEditId(null);
       } else {
-        await addDoc(collection(db, 'products'), form);
+        await addDoc(collection(db, 'products'), data);
         toast.success('Produk berhasil ditambahkan!');
       }
-
-      setForm({ name: '', description: '', price: 0, stock: 0, image: '', category: '' });
+      form.reset();
     } catch (err) {
       console.error(err);
-      toast.error('Gagal menyimpan produk');
+      toast.error('Gagal menyimpan produk.');
     }
   };
 
-  const handleEdit = (p: Product) => {
-    setForm({
-      name: p.name,
-      description: p.description,
-      price: p.price,
-      stock: p.stock,
-      image: p.image || '',
-      category: p.category || '',
-    });
-    setEditId(p.id);
+  const handleEdit = (product: Product) => {
+    setEditId(product.id);
+    form.reset(product);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (id: string) => {
-    await deleteDoc(doc(db, 'products', id));
-    toast.success('Produk dihapus');
+    if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
+      await deleteDoc(doc(db, 'products', id));
+      toast.success('Produk berhasil dihapus.');
+    }
   };
 
+  const handleCancelEdit = () => {
+    setEditId(null);
+    form.reset();
+  }
+
+  // Tampilkan skeleton jika bukan di client atau data belum siap
+  if (!isClient) {
+    return (
+        <div className="max-w-4xl mx-auto py-10 px-4 space-y-10">
+            <FormSkeleton />
+            <div>
+                <h2 className="text-2xl font-bold mb-4">Daftar Produk</h2>
+                <div className="space-y-4">
+                    <Skeleton className="h-28 w-full rounded-lg" />
+                    <Skeleton className="h-28 w-full rounded-lg" />
+                </div>
+            </div>
+        </div>
+    )
+  }
+
   return (
-    <div className="max-w-4xl mx-auto py-10 px-4">
-      <h1 className="text-3xl font-bold mb-6 text-center text-indigo-700">🛠️ Dashboard Produk</h1>
+    <div className="max-w-4xl mx-auto py-10 px-4 space-y-10">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">
+            {editId ? '📝 Edit Produk' : '✨ Tambah Produk Baru'}
+          </CardTitle>
+          <CardDescription>
+            {editId ? 'Perbarui detail produk di bawah ini.' : 'Isi detail produk baru untuk menambahkannya ke toko Anda.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nama Produk</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Contoh: Topi Keren" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kategori</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Contoh: Aksesoris" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Harga (Rp)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="50000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="stock"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stok</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="100" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4 mb-10 bg-white p-6 rounded-lg shadow">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input name="name" placeholder="Nama Barang" value={form.name} onChange={handleChange} />
-          <Input name="price" type="number" placeholder="Harga Barang" value={form.price} onChange={handleChange} />
-          <Input name="stock" type="number" placeholder="Stok Barang" value={form.stock} onChange={handleChange} />
-          <Input name="image" placeholder="URL Gambar Barang" value={form.image} onChange={handleChange} />
-        </div>
-        <Textarea name="description" placeholder="Deskripsi Barang" value={form.description} onChange={handleChange} />
-
-        <div>
-          <Label className="mb-1 block text-sm font-medium">Kategori Barang</Label>
-          <Input name="category" placeholder="Misal: Jaket" value={form.category} onChange={handleChange} />
-        </div>
-
-        <Button type="submit" className="w-full">
-          {editId ? '💾 Update Produk' : '➕ Tambah Produk'}
-        </Button>
-      </form>
-
-      <div className="space-y-4">
-        {products.map((p) => (
-          <Card key={p.id}>
-            <CardContent className="p-4 flex justify-between items-center">
-              <div>
-                <p className="font-bold text-lg">{p.name}</p>
-                <p className="text-sm text-gray-600">{p.description}</p>
-                <p className="text-indigo-700">Rp {p.price.toLocaleString()}</p>
-                <p className="text-sm text-gray-700">Stok: {p.stock}</p>
-                <p className="text-sm text-gray-500">Kategori: {p.category || '-'}</p>
-                {p.image && (
-                  <img
-                    src={p.image}
-                    alt={p.name}
-                    className="mt-2 w-24 h-24 object-cover rounded-md border"
-                  />
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL Gambar</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://..." {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Masukkan link URL gambar produk yang valid.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </div>
-              <div className="space-x-2">
-                <Button variant="outline" onClick={() => handleEdit(p)}>
-                  Edit
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deskripsi</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Jelaskan detail produk di sini..."
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <CardFooter className="flex justify-end gap-2 p-0 pt-6">
+                {editId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                        Batal
+                    </Button>
+                )}
+                <Button type="submit">
+                  {editId ? '💾 Simpan Perubahan' : '➕ Tambah Produk'}
                 </Button>
-                <Button variant="outline" onClick={() => handleDelete(p.id)}>
-                  Hapus
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardFooter>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Daftar Produk</h2>
+        <div className="space-y-4">
+          {products.map((p) => (
+            <Card key={p.id}>
+              <CardContent className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-4">
+                  {p.image && <img src={p.image} alt={p.name} className="w-20 h-20 object-cover rounded-md border" />}
+                  <div>
+                    <p className="font-bold text-lg">{p.name}</p>
+                    <p className="text-sm text-gray-500">{p.category || 'Tanpa Kategori'}</p>
+                    <p className="text-indigo-700">Rp {p.price.toLocaleString()}</p>
+                    <p className="text-sm">Stok: {p.stock}</p>
+                  </div>
+                </div>
+                <div className="flex space-x-2 self-end sm:self-center">
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(p)}>
+                    Edit
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDelete(p.id)}>
+                    Hapus
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );
