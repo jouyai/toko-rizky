@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext'; // Import useAuth
 
-export default function RegisterPage() {
+export default function CreateAdminPage() {
   const router = useRouter();
   const { user, loading } = useAuth(); // Dapatkan status user dan loading
   const [email, setEmail] = useState('');
@@ -38,12 +38,13 @@ export default function RegisterPage() {
       await setDoc(doc(db, 'users', newUser.uid), {
         name: name,
         email: email,
-        role: 'buyer',
+        role: 'admin',
       });
 
+      // Arahkan ke halaman utama setelah berhasil
       router.push('/');
     } catch (err: any) {
-      setError(err.message || 'Gagal register');
+      setError(err.message || 'Gagal membuat akun admin');
     }
   };
 
@@ -53,15 +54,16 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center">Register Akun Baru</h2>
+    <div className="min-h-screen flex items-center justify-center bg-red-50">
+      <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-md border-2 border-red-500">
+        <h2 className="text-2xl font-bold mb-2 text-center text-red-600">Buat Akun Admin Baru</h2>
+        <p className="text-center text-sm text-gray-600 mb-6">Halaman ini hanya untuk development. Jangan digunakan di produksi.</p>
 
         {error && <p className="text-red-500 mb-4 text-sm">{error}</p>}
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium">Nama Lengkap</label>
+            <label className="block text-sm font-medium">Nama Lengkap Admin</label>
             <input
               type="text"
               value={name}
@@ -95,16 +97,16 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md transition"
+            className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md transition"
           >
-            Register
+            Buat Admin
           </button>
         </form>
 
         <p className="text-sm text-center mt-4">
-          Sudah punya akun?{' '}
+          Kembali ke halaman{' '}
           <Link href="/login" className="text-indigo-600 hover:underline">
-            Login di sini
+            Login
           </Link>
         </p>
       </div>

@@ -14,6 +14,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import AdminGuard from '@/components/auth/AdminGuard';
 
 // Skema validasi menggunakan Zod
 const productSchema = z.object({
@@ -51,13 +52,12 @@ const FormSkeleton = () => (
     </Card>
 );
 
-
-export default function ProductDashboard() {
+// Pindahkan komponen utama ke dalam fungsi tersendiri
+function ProductDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false); // <-- State baru untuk client-side render
+  const [isClient, setIsClient] = useState(false);
 
-  // Set isClient menjadi true hanya setelah komponen terpasang di browser
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -133,7 +133,6 @@ export default function ProductDashboard() {
     form.reset();
   }
 
-  // Tampilkan skeleton jika bukan di client atau data belum siap
   if (!isClient) {
     return (
         <div className="max-w-4xl mx-auto py-10 px-4 space-y-10">
@@ -296,5 +295,14 @@ export default function ProductDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Komponen Halaman Dashboard yang menerapkan Guard
+export default function ProductDashboardPage() {
+  return (
+    <AdminGuard>
+      <ProductDashboard />
+    </AdminGuard>
   );
 }

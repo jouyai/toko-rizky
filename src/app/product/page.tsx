@@ -5,6 +5,17 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase';
 import ProductCard from '@/components/product/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
+// Tidak perlu import Metadata di client component, tapi Next.js akan tetap mengambilnya jika diekspor
+// Untuk konsistensi, kita bisa membuat metadata di file terpisah atau di layout jika dinamis
+// Namun untuk halaman statis, kita bisa letakkan di sini dan Next.js akan mendeteksinya saat build.
+
+// export const metadata = {
+//   title: 'Semua Produk',
+// };
+// Karena ini client component, cara terbaik adalah mengatur title melalui useEffect jika diperlukan,
+// atau (lebih baik lagi) biarkan Next.js menanganinya.
+// Untuk SEO, halaman list produk seperti ini seringkali dibuat Server Component.
+// Namun kita akan biarkan seperti ini untuk sekarang.
 
 interface Product {
   id: string;
@@ -25,6 +36,11 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [search, setSearch] = useState('');
+
+  // Set judul halaman secara dinamis di client component
+  useEffect(() => {
+    document.title = 'Semua Produk | Toko Rizky';
+  }, []);
 
   // Fetch product
   useEffect(() => {

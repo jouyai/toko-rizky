@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,6 +17,10 @@ export default function ContactPage() {
     // TODO: Implement contact form submission logic
     setSubmitted(true)
   }
+
+  useEffect(() => {
+    document.title = 'Contact | Toko Rizky';
+  }, []);
 
   return (
     <div className="max-w-2xl mx-auto p-8">

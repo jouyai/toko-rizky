@@ -89,8 +89,8 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative h-[500px] rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center p-6">
         <div className="text-center">
-          <h1 className="text-5xl font-extrabold sm:text-7xl">Welcome to Toko Rizky</h1>
-          <p className="mt-6 text-xl max-w-2xl mx-auto">Discover our amazing collection of products and enjoy exclusive deals.</p>
+          <h1 className="text-5xl font-extrabold sm:text-7xl">Selamat Datang di Toko Rizky</h1>
+          <p className="mt-6 text-xl max-w-2xl mx-auto">Temukan koleksi produk kami yang menakjubkan dan nikmati penawaran eksklusif.</p>
           <Link href="/product">
             <Button size="lg" className="mt-10 bg-white text-indigo-600 hover:bg-gray-100 px-10 py-6 text-lg font-semibold shadow-lg">
               Shop Now

@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { ShoppingCart, User, LogOut, Wrench } from 'lucide-react';
 
 export default function Navbar() {
-    const { user } = useAuth();
+    // Ambil user dan userProfile dari AuthContext
+    const { user, userProfile } = useAuth();
 
     const handleLogout = async () => {
         await signOut(auth);
@@ -47,12 +48,15 @@ export default function Navbar() {
 
                 {user ? (
                     <>
-                        <Link href="/dashboard/products" passHref>
-                            <Button variant="outline" size="icon">
-                                <Wrench className="h-4 w-4" />
-                                <span className="sr-only">Dashboard</span>
-                            </Button>
-                        </Link>
+                        {/* Tampilkan tombol Dashboard HANYA jika role user adalah 'admin' */}
+                        {userProfile?.role === 'admin' && (
+                            <Link href="/dashboard/products" passHref>
+                                <Button variant="outline" size="icon">
+                                    <Wrench className="h-4 w-4" />
+                                    <span className="sr-only">Dashboard</span>
+                                </Button>
+                            </Link>
+                        )}
                         <Link href="/profile" passHref>
                             <Button variant="outline" size="icon">
                                 <User className="h-4 w-4" />
