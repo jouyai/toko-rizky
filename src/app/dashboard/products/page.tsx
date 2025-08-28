@@ -1,308 +1,190 @@
+// src/app/dashboard/products/page.tsx
 'use client';
 
-import { db } from '@/firebase';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { toast } from 'sonner';
+import { zodResolver } from '@hookform/resolvers/zod';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Skeleton } from '@/components/ui/skeleton';
-import AdminGuard from '@/components/auth/AdminGuard';
-
-// Skema validasi menggunakan Zod
+// -----------------------------
+// Schema & Types
+// -----------------------------
 const productSchema = z.object({
-  name: z.string().min(3, { message: 'Nama produk minimal 3 karakter.' }),
+  name: z.string().min(1, 'Nama wajib diisi'),
+  price: z.coerce.number().min(0, 'Harga tidak boleh negatif'),
+  stock: z.coerce.number().int().min(0, 'Stok minimal 0'),
   description: z.string().optional(),
-  price: z.coerce.number().positive({ message: 'Harga harus lebih dari 0.' }),
-  stock: z.coerce.number().min(0, { message: 'Stok tidak boleh negatif.' }),
-  image: z.string().url({ message: 'URL gambar tidak valid.' }).optional().or(z.literal('')),
+  image: z.string().url('URL gambar tidak valid').optional(),
   category: z.string().optional(),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
 
-interface Product extends ProductFormValues {
-  id: string;
-}
-
-// Komponen Skeleton untuk form
-const FormSkeleton = () => (
-    <Card>
-        <CardHeader>
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-full mt-2" />
-        </CardHeader>
-        <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-24 w-full" />
-        </CardContent>
-    </Card>
-);
-
-// Pindahkan komponen utama ke dalam fungsi tersendiri
-function ProductDashboard() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const form = useForm<ProductFormValues>({
-    resolver: zodResolver(productSchema),
+// -----------------------------
+// Page Component
+// -----------------------------
+export default function ProductsPage() {
+  const form = useForm<z.infer<typeof productSchema>>({
+    resolver: zodResolver(productSchema) as any,
     defaultValues: {
       name: '',
-      description: '',
       price: 0,
       stock: 0,
+      description: '',
       image: '',
       category: '',
     },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
 
-  useEffect(() => {
-    const unsubProd = onSnapshot(collection(db, 'products'), (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Product[];
-      setProducts(data);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setValue,
+    reset,
+  } = form;
+
+  async function onSubmit(values: ProductFormValues) {
+    // TODO: ganti ke API route kamu
+    // await fetch('/api/products', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(values) });
+    console.log('Submitting product:', values);
+
+    reset({
+      name: '',
+      price: 0,
+      stock: 0,
+      description: '',
+      image: '',
+      category: '',
     });
-
-    return () => unsubProd();
-  }, []);
-
-  const ensureCategoryExists = async (categoryName: string) => {
-    if (!categoryName || categoryName.trim() === '') return;
-    const q = query(collection(db, 'categories'), where('name', '==', categoryName));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      await addDoc(collection(db, 'categories'), { name: categoryName });
-      toast.info(`Kategori baru "${categoryName}" ditambahkan.`);
-    }
-  };
-
-  const onSubmit = async (data: ProductFormValues) => {
-    try {
-      if (data.category) await ensureCategoryExists(data.category);
-
-      if (editId) {
-        await updateDoc(doc(db, 'products', editId), data);
-        toast.success('Produk berhasil diperbarui!');
-        setEditId(null);
-      } else {
-        await addDoc(collection(db, 'products'), data);
-        toast.success('Produk berhasil ditambahkan!');
-      }
-      form.reset();
-    } catch (err) {
-      console.error(err);
-      toast.error('Gagal menyimpan produk.');
-    }
-  };
-
-  const handleEdit = (product: Product) => {
-    setEditId(product.id);
-    form.reset(product);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
-      await deleteDoc(doc(db, 'products', id));
-      toast.success('Produk berhasil dihapus.');
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditId(null);
-    form.reset();
-  }
-
-  if (!isClient) {
-    return (
-        <div className="max-w-4xl mx-auto py-10 px-4 space-y-10">
-            <FormSkeleton />
-            <div>
-                <h2 className="text-2xl font-bold mb-4">Daftar Produk</h2>
-                <div className="space-y-4">
-                    <Skeleton className="h-28 w-full rounded-lg" />
-                    <Skeleton className="h-28 w-full rounded-lg" />
-                </div>
-            </div>
-        </div>
-    )
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-10 px-4 space-y-10">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">
-            {editId ? '📝 Edit Produk' : '✨ Tambah Produk Baru'}
-          </CardTitle>
-          <CardDescription>
-            {editId ? 'Perbarui detail produk di bawah ini.' : 'Isi detail produk baru untuk menambahkannya ke toko Anda.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nama Produk</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Contoh: Topi Keren" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kategori</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Contoh: Aksesoris" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Harga (Rp)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="50000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="stock"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Stok</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="100" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+    <main className="mx-auto max-w-2xl p-6">
+      <h1 className="mb-6 text-2xl font-semibold">Tambah Produk</h1>
 
-              <FormField
-                control={form.control}
-                name="image"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL Gambar</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Masukkan link URL gambar produk yang valid.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Deskripsi</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Jelaskan detail produk di sini..."
-                        className="resize-none"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <CardFooter className="flex justify-end gap-2 p-0 pt-6">
-                {editId && (
-                    <Button type="button" variant="outline" onClick={handleCancelEdit}>
-                        Batal
-                    </Button>
-                )}
-                <Button type="submit">
-                  {editId ? '💾 Simpan Perubahan' : '➕ Tambah Produk'}
-                </Button>
-              </CardFooter>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Daftar Produk</h2>
-        <div className="space-y-4">
-          {products.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center gap-4">
-                  {p.image && <img src={p.image} alt={p.name} className="w-20 h-20 object-cover rounded-md border" />}
-                  <div>
-                    <p className="font-bold text-lg">{p.name}</p>
-                    <p className="text-sm text-gray-500">{p.category || 'Tanpa Kategori'}</p>
-                    <p className="text-indigo-700">Rp {p.price.toLocaleString()}</p>
-                    <p className="text-sm">Stok: {p.stock}</p>
-                  </div>
-                </div>
-                <div className="flex space-x-2 self-end sm:self-center">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(p)}>
-                    Edit
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(p.id)}>
-                    Hapus
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* Name */}
+        <div className="space-y-1">
+          <label htmlFor="name" className="block text-sm font-medium">
+            Nama
+          </label>
+          <input
+            id="name"
+            type="text"
+            className="w-full rounded border px-3 py-2"
+            placeholder="Contoh: Meja Belajar"
+            {...register('name')}
+          />
+          {errors.name && (
+            <p className="text-sm text-red-600">{errors.name.message}</p>
+          )}
         </div>
-      </div>
-    </div>
-  );
-}
 
-// Komponen Halaman Dashboard yang menerapkan Guard
-export default function ProductDashboardPage() {
-  return (
-    <AdminGuard>
-      <ProductDashboard />
-    </AdminGuard>
+        {/* Price */}
+        <div className="space-y-1">
+          <label htmlFor="price" className="block text-sm font-medium">
+            Harga
+          </label>
+          <input
+            id="price"
+            type="number"
+            className="w-full rounded border px-3 py-2"
+            placeholder="0"
+            {...register('price', { valueAsNumber: true })}
+            onChange={(e) => {
+              const n = Number(e.currentTarget.value);
+              setValue('price', Number.isNaN(n) ? 0 : n, { shouldValidate: true });
+            }}
+          />
+          {errors.price && (
+            <p className="text-sm text-red-600">{errors.price.message}</p>
+          )}
+        </div>
+
+        {/* Stock */}
+        <div className="space-y-1">
+          <label htmlFor="stock" className="block text-sm font-medium">
+            Stok
+          </label>
+          <input
+            id="stock"
+            type="number"
+            className="w-full rounded border px-3 py-2"
+            placeholder="0"
+            {...register('stock', { valueAsNumber: true })}
+            onChange={(e) => {
+              const n = Number(e.currentTarget.value);
+              setValue('stock', Number.isNaN(n) ? 0 : n, { shouldValidate: true });
+            }}
+          />
+          {errors.stock && (
+            <p className="text-sm text-red-600">{errors.stock.message}</p>
+          )}
+        </div>
+
+        {/* Category */}
+        <div className="space-y-1">
+          <label htmlFor="category" className="block text-sm font-medium">
+            Kategori
+          </label>
+          <input
+            id="category"
+            type="text"
+            className="w-full rounded border px-3 py-2"
+            placeholder="Contoh: Furniture"
+            {...register('category')}
+          />
+          {errors.category && (
+            <p className="text-sm text-red-600">{errors.category.message}</p>
+          )}
+        </div>
+
+        {/* Image URL */}
+        <div className="space-y-1">
+          <label htmlFor="image" className="block text-sm font-medium">
+            URL Gambar
+          </label>
+          <input
+            id="image"
+            type="url"
+            className="w-full rounded border px-3 py-2"
+            placeholder="https://example.com/image.jpg"
+            {...register('image')}
+          />
+          {errors.image && (
+            <p className="text-sm text-red-600">{errors.image.message}</p>
+          )}
+        </div>
+
+        {/* Description */}
+        <div className="space-y-1">
+          <label htmlFor="description" className="block text-sm font-medium">
+            Deskripsi
+          </label>
+          <textarea
+            id="description"
+            className="min-h-[120px] w-full rounded border px-3 py-2"
+            placeholder="Deskripsi singkat produk"
+            {...register('description')}
+          />
+          {errors.description && (
+            <p className="text-sm text-red-600">{errors.description.message}</p>
+          )}
+        </div>
+
+        <div className="pt-2">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded bg-black px-4 py-2 text-white disabled:opacity-60"
+          >
+            {isSubmitting ? 'Menyimpan...' : 'Simpan Produk'}
+          </button>
+        </div>
+      </form>
+    </main>
   );
 }
