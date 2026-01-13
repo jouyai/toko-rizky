@@ -5,22 +5,20 @@ import Navbar from '@/components/Navbar';
 import { ToastProvider } from '@/components/ToastProvider';
 import { CartProvider } from '@/lib/CartContext';
 import Footer from '@/components/Footer';
-import type { Metadata } from 'next'; // 1. Impor tipe Metadata
+import type { Metadata } from 'next';
 
-// 2. Tambahkan objek metadata
 export const metadata: Metadata = {
   title: {
-    default: 'Toko Rizky - Belanja Online Terpercaya', // Judul default untuk halaman utama
-    template: '%s | Toko Rizky', // Template untuk halaman lain
+    default: 'Toko Rizky - Belanja Online Terpercaya',
+    template: '%s | Toko Rizky',
   },
   description: 'Temukan produk berkualitas dengan harga terbaik di Toko Rizky.',
   keywords: ['toko online', 'fashion', 'aksesoris', 'belanja murah'],
 };
 
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning={true}>
       <body>
         <AuthProvider>
           <CartProvider>

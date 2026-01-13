@@ -1,5 +1,5 @@
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth } from "firebase/auth";        // <-- Pastikan baris ini ada!
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -12,6 +12,9 @@ const firebaseConfig = {
   measurementId: "G-MQEWJVG62W"
 };
 
-const app = initializeApp(firebaseConfig);
+// Logika untuk mencegah inisialisasi ganda (penyebab error sebelumnya)
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+// Export auth dan db agar bisa dipakai di file lain
 export const auth = getAuth(app);
 export const db = getFirestore(app);

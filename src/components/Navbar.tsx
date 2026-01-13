@@ -5,10 +5,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, User, LogOut, Wrench } from 'lucide-react';
-
+import { ShoppingCart, User, LogOut, Wrench, FileText } from 'lucide-react';
 export default function Navbar() {
-    // Ambil user dan userProfile dari AuthContext
     const { user, userProfile } = useAuth();
 
     const handleLogout = async () => {
@@ -50,12 +48,23 @@ export default function Navbar() {
                     <>
                         {/* Tampilkan tombol Dashboard HANYA jika role user adalah 'admin' */}
                         {userProfile?.role === 'admin' && (
-                            <Link href="/dashboard/products" passHref>
-                                <Button variant="outline" size="icon">
-                                    <Wrench className="h-4 w-4" />
-                                    <span className="sr-only">Dashboard</span>
-                                </Button>
-                            </Link>
+                            <>
+                                {/* Dashboard Produk */}
+                                <Link href="/dashboard/products" passHref>
+                                    <Button variant="outline" size="icon" title="Kelola Produk">
+                                        <Wrench className="h-4 w-4" />
+                                        <span className="sr-only">Dashboard Produk</span>
+                                    </Button>
+                                </Link>
+                                
+                                {/* Dashboard Pesanan (BARU) */}
+                                <Link href="/dashboard/orders" passHref>
+                                    <Button variant="outline" size="icon" title="Kelola Pesanan">
+                                        <FileText className="h-4 w-4" />
+                                        <span className="sr-only">Dashboard Pesanan</span>
+                                    </Button>
+                                </Link>
+                            </>
                         )}
                         <Link href="/profile" passHref>
                             <Button variant="outline" size="icon">
