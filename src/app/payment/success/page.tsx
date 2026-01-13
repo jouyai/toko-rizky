@@ -30,7 +30,7 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
         <div className="bg-gray-50 p-3 rounded-lg mb-6 text-sm text-left">
           <div className="flex justify-between mb-1">
             <span className="text-gray-500">Status:</span>
-            <span className="font-medium text-green-600">{status}</span>
+            <span className="font-medium text-green-600">{String(status)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Transaction ID:</span>
