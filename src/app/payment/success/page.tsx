@@ -2,11 +2,15 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default function PaymentSuccessPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
-  const paymentId =
-    (Array.isArray(searchParams?.id) ? searchParams?.id[0] : searchParams?.id) ||
-    (Array.isArray(searchParams?.payment_id) ? searchParams?.payment_id[0] : searchParams?.payment_id) ||
-    "N/A";
+type Props = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export default async function PaymentSuccessPage({ searchParams }: Props) {
+  const resolvedSearchParams = await searchParams;
+  
+  const paymentId = resolvedSearchParams.id || resolvedSearchParams.payment_id || "N/A";
+  const status = resolvedSearchParams.status || "Success";
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
@@ -23,10 +27,15 @@ export default function PaymentSuccessPage({ searchParams }: { searchParams?: Re
           Thank you for your purchase. We have received your payment.
         </p>
         
-        <div className="bg-gray-50 p-3 rounded-lg mb-6 text-sm">
-          <span className="text-gray-500">Transaction ID:</span>
-          <br />
-          <span className="font-mono font-medium text-gray-800">{paymentId}</span>
+        <div className="bg-gray-50 p-3 rounded-lg mb-6 text-sm text-left">
+          <div className="flex justify-between mb-1">
+            <span className="text-gray-500">Status:</span>
+            <span className="font-medium text-green-600">{status}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Transaction ID:</span>
+            <span className="font-mono font-medium text-gray-800">{String(paymentId)}</span>
+          </div>
         </div>
 
         <Link 
