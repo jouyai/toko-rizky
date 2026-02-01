@@ -116,8 +116,8 @@ export default function RevenueChart({ orders }: RevenueChartProps) {
                     <Tooltip
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         cursor={{ stroke: '#f59e0b', strokeWidth: 1, strokeDasharray: '4 4' }}
-                        formatter={(value: number) => [
-                            new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value),
+                        formatter={(value: any) => [
+                            new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(value) || 0),
                             'Revenue'
                         ]}
                     />
