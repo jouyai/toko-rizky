@@ -54,7 +54,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
-  const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const itemCount = (cartItems || []).reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <CartContext.Provider value={{ cartItems, loading, itemCount }}>

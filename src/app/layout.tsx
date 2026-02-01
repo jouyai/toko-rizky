@@ -1,10 +1,8 @@
 import './globals.css';
 import { ReactNode } from 'react';
 import { AuthProvider } from '@/lib/AuthContext';
-import Navbar from '@/components/Navbar';
 import { ToastProvider } from '@/components/ToastProvider';
 import { CartProvider } from '@/lib/CartContext';
-import Footer from '@/components/Footer';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -23,11 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <AuthProvider>
           <CartProvider>
             <ToastProvider />
-            <div className="flex flex-col min-h-screen">
-              <Navbar />
-              <main className="container mx-auto px-4 py-6 flex-grow">{children}</main>
-              <Footer />
-            </div>
+            {children}
           </CartProvider>
         </AuthProvider>
       </body>
