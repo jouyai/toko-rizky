@@ -1,11 +1,9 @@
-'use client';
-
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Search, ChevronRight, ChevronLeft, Heart, Eye, Star, SlidersHorizontal, X } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Heart, Eye, Star, SlidersHorizontal, X, Loader2 } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -24,7 +22,7 @@ interface Category {
 
 const PRODUCTS_PER_PAGE = 12;
 
-export default function ProductPage() {
+function ProductContent() {
   const searchParams = useSearchParams();
   const categoryFromUrl = searchParams.get('category') || '';
 
@@ -428,5 +426,17 @@ export default function ProductPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function ProductPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
+      </div>
+    }>
+      <ProductContent />
+    </Suspense>
   );
 }
