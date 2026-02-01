@@ -24,8 +24,15 @@ interface RevenueChartProps {
 
 export default function RevenueChart({ orders }: RevenueChartProps) {
     const chartData = useMemo(() => {
+        interface MonthData {
+            name: string;
+            monthIndex: number;
+            year: number;
+            total: number;
+        }
+
         // 1. Initialize last 6 months
-        const months = [];
+        const months: MonthData[] = [];
         const today = new Date();
         for (let i = 5; i >= 0; i--) {
             const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
