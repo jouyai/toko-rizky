@@ -150,7 +150,7 @@ export default function DashboardLayout({
                   <DropdownMenuTrigger className="flex items-center gap-3 outline-none">
                     <div className="text-right hidden sm:block">
                       <p className="text-sm font-bold text-slate-900 leading-none">
-                        {userProfile?.displayName || user?.email?.split('@')[0] || 'Admin'}
+                        {userProfile?.name || user?.email?.split('@')[0] || 'Admin'}
                       </p>
                       <p className="text-xs text-slate-500 mt-1">Super Admin</p>
                     </div>

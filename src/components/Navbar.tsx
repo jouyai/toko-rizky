@@ -111,7 +111,7 @@ export default function Navbar() {
                                 <DropdownMenuContent align="end" className="w-56 bg-white border border-slate-100 shadow-lg rounded-xl p-2 z-[60]">
                                     <DropdownMenuLabel className="font-normal">
                                         <div className="flex flex-col space-y-1">
-                                            <p className="text-sm font-bold leading-none text-slate-900">{userProfile?.displayName || 'User'}</p>
+                                            <p className="text-sm font-bold leading-none text-slate-900">{userProfile?.name || 'User'}</p>
                                             <p className="text-xs leading-none text-slate-500 truncate">{user.email}</p>
                                         </div>
                                     </DropdownMenuLabel>
