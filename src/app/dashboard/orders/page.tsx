@@ -68,8 +68,8 @@ export default function AdminOrdersPage() {
     const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       })) as Order[];
       setOrders(ordersData);
       setLoading(false);
@@ -145,8 +145,8 @@ export default function AdminOrdersPage() {
                 key={status}
                 onClick={() => setStatusFilter(status)}
                 className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${statusFilter === status
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
                   }`}
               >
                 {status === 'all' ? 'All Orders' : status.charAt(0).toUpperCase() + status.slice(1)}

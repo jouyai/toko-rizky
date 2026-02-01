@@ -73,8 +73,8 @@ export default function AdminProductsPage() {
       const data = querySnapshot.docs.map(doc => {
         const d = doc.data();
         return {
-          id: doc.id,
           ...d,
+          id: doc.id,
           // Backward compatibility if gender field missing
           gender: d.gender || 'Unisex',
           category: d.category || 'Uncategorized'

@@ -50,8 +50,8 @@ export default function DashboardPage() {
             const ordersData: Order[] = [];
 
             snapshot.forEach(doc => {
-                const data = doc.data() as Order;
-                ordersData.push({ id: doc.id, ...data });
+                const data = doc.data();
+                ordersData.push({ ...data, id: doc.id } as Order);
 
                 // Calculate Revenue (only for successful/paid orders)
                 if (['success', 'settlement', 'capture', 'completed'].includes(data.status?.toLowerCase())) {
@@ -76,8 +76,8 @@ export default function DashboardPage() {
 
         const unsubscribeRecent = onSnapshot(recentOrdersQuery, (snapshot) => {
             const recent = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
+                ...doc.data(),
+                id: doc.id
             })) as Order[];
             setRecentOrders(recent);
             setLoading(false); // Data is ready
