@@ -11,8 +11,7 @@ import {
   collection,
   query,
   where,
-  getDocs,
-  orderBy
+  getDocs
 } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import Link from 'next/link';
@@ -40,11 +39,12 @@ import {
   Eye
 } from 'lucide-react';
 
-type OrderStatus = 'success' | 'pending' | 'shipped' | 'failed';
+type OrderStatus = 'success' | 'paid' | 'pending' | 'shipped' | 'failed';
 type FilterStatus = 'all' | OrderStatus;
 
 const statusConfig = {
   success: { label: 'Berhasil', bg: 'bg-green-100', text: 'text-green-700' },
+  paid: { label: 'Berhasil', bg: 'bg-green-100', text: 'text-green-700' },
   shipped: { label: 'Dikirim', bg: 'bg-blue-100', text: 'text-blue-700' },
   pending: { label: 'Menunggu', bg: 'bg-amber-100', text: 'text-amber-700' },
   failed: { label: 'Gagal', bg: 'bg-red-100', text: 'text-red-700' },
@@ -92,15 +92,20 @@ export default function ProfilePage() {
         try {
           const q = query(
             collection(db, 'orders'),
-            where('userId', '==', user.uid),
-            orderBy('createdAt', 'desc')
+            where('userId', '==', user.uid)
           );
 
           const querySnapshot = await getDocs(q);
-          const orderData = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
+          const orderData = querySnapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+            .sort((a: any, b: any) => {
+              const aTime = a.createdAt?.seconds || 0;
+              const bTime = b.createdAt?.seconds || 0;
+              return bTime - aTime;
+            });
 
           setOrders(orderData);
         } catch (error) {
@@ -244,7 +249,7 @@ export default function ProfilePage() {
               <div className="bg-white border border-slate-100 rounded-xl p-4 mb-6 shadow-sm">
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
                   <div className="flex gap-2 flex-wrap">
-                    {(['all', 'success', 'pending', 'shipped'] as FilterStatus[]).map((status) => (
+                    {(['all', 'paid', 'pending', 'shipped'] as FilterStatus[]).map((status) => (
                       <button
                         key={status}
                         onClick={() => { setFilterStatus(status); setCurrentPage(1); }}

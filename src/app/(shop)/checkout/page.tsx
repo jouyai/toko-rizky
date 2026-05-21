@@ -5,529 +5,575 @@ import { useCart } from '@/lib/CartContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, Truck, Zap, Clock, CreditCard, Wallet, Building, Shield, ChevronRight, Lock } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  CreditCard,
+  Loader2,
+  Lock,
+  MapPin,
+  PackageCheck,
+  Shield,
+  ShoppingBag,
+  Truck,
+  UserRound,
+  Zap,
+} from 'lucide-react';
 import Link from 'next/link';
+import Script from 'next/script';
 
-// Deklarasi tipe untuk window agar bisa mengenali `snap`
 declare global {
-    interface Window {
-        snap: any;
-    }
+  interface Window {
+    snap: any;
+  }
 }
 
 type ShippingMethod = 'regular' | 'express' | 'sameday';
-type PaymentMethod = 'ewallet' | 'va' | 'card';
 
 const shippingOptions = {
-    regular: { name: 'Regular', price: 15000, days: '2-4 hari', icon: Truck },
-    express: { name: 'Express', price: 35000, days: '1-2 hari', icon: Zap },
-    sameday: { name: 'Same Day', price: 75000, days: 'Hari ini', icon: Clock },
+  regular: { name: 'Regular', price: 15000, days: '2-4 hari', icon: Truck, description: 'Pilihan hemat untuk pengiriman standar.' },
+  express: { name: 'Express', price: 35000, days: '1-2 hari', icon: Zap, description: 'Lebih cepat sampai untuk kebutuhan mendesak.' },
+  sameday: { name: 'Same Day', price: 75000, days: 'Hari ini', icon: Clock, description: 'Dikirim di hari yang sama untuk area tertentu.' },
 };
 
+const inputClassName =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-slate-900 focus:ring-4 focus:ring-slate-900/5';
+
 export default function CheckoutPage() {
-    const { user } = useAuth();
-    const { cartItems, itemCount, loading } = useCart();
-    const router = useRouter();
+  const { user } = useAuth();
+  const { cartItems, loading } = useCart();
+  const router = useRouter();
 
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('regular');
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        address: '',
-        city: '',
-        province: '',
-        postalCode: '',
-    });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('regular');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    province: '',
+    postalCode: '',
+  });
 
-    // Calculate totals
-    const subtotal = cartItems ? cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) : 0;
-    const shippingCost = shippingOptions[shippingMethod].price;
-    const tax = Math.round(subtotal * 0.11);
-    const total = subtotal + shippingCost + tax;
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const shippingCost = shippingOptions[shippingMethod].price;
+  const tax = Math.round(subtotal * 0.11);
+  const total = subtotal + shippingCost + tax;
+  const selectedShipping = shippingOptions[shippingMethod];
 
-    // Load script Midtrans Snap
-    useEffect(() => {
-        const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
-        const snapScriptUrl = 'https://app.sandbox.midtrans.com/snap/snap.js';
+  useEffect(() => {
+    document.title = 'Checkout | Toko Rizky';
+  }, []);
 
-        if (!clientKey) return;
-
-        const script = document.createElement('script');
-        script.src = snapScriptUrl;
-        script.setAttribute('data-client-key', clientKey);
-        script.async = true;
-        document.body.appendChild(script);
-
-        return () => {
-            document.body.removeChild(script);
-        };
-    }, []);
-
-    // Auto-fill form if user is logged in
-    useEffect(() => {
-        if (user) {
-            setFormData(prev => ({
-                ...prev,
-                name: user.displayName || '',
-                email: user.email || '',
-            }));
-        }
-    }, [user]);
-
-    // Redirect if cart is empty
-    useEffect(() => {
-        if (!loading && cartItems.length === 0) {
-            router.push('/cart');
-        }
-    }, [loading, cartItems, router]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-    };
-
-    const handleCheckout = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!user) {
-            router.push('/login');
-            return;
-        }
-
-        // Validate form
-        if (!formData.name || !formData.phone || !formData.address || !formData.city) {
-            toast.error('Mohon lengkapi semua field yang diperlukan');
-            return;
-        }
-
-        setIsProcessing(true);
-
-        const orderDetails = {
-            orderId: `TR-${Date.now()}`,
-            userId: user.uid,
-            total: total,
-            items: cartItems.map(item => ({
-                id: item.productId,
-                price: item.price,
-                quantity: item.quantity,
-                name: item.name,
-            })),
-            customerDetails: {
-                first_name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                shipping_address: {
-                    address: formData.address,
-                    city: formData.city,
-                    postal_code: formData.postalCode,
-                },
-                billing_address: {
-                    address: formData.address,
-                    city: formData.city,
-                    postal_code: formData.postalCode,
-                }
-            },
-            shippingMethod: shippingMethod,
-            shippingCost: shippingCost,
-        };
-
-        try {
-            const response = await fetch('/api/create-transaction', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderDetails),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Gagal membuat transaksi.');
-            }
-
-            window.snap.pay(data.token, {
-                onSuccess: function (result: any) {
-                    router.push(`/payment/success?order_id=${data.orderId}`);
-                },
-                onPending: function (result: any) {
-                    router.push(`/payment/pending?order_id=${data.orderId}`);
-                },
-                onError: function (result: any) {
-                    router.push(`/payment/error?order_id=${data.orderId}`);
-                },
-                onClose: function () {
-                    toast.info("Anda menutup popup tanpa menyelesaikan pembayaran.");
-                }
-            });
-
-        } catch (error: any) {
-            console.error(error);
-            toast.error(error.message || "Terjadi kesalahan sistem.");
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center min-h-[60vh]">
-                <div className="text-center">
-                    <Loader2 className="animate-spin h-10 w-10 text-slate-400 mx-auto mb-4" />
-                    <p className="text-sm text-slate-500 uppercase tracking-widest font-bold">Memuat...</p>
-                </div>
-            </div>
-        );
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: user.displayName || '',
+        email: user.email || '',
+      }));
     }
+  }, [user]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user) return router.push('/login');
 
     if (cartItems.length === 0) {
-        return null;
+      return toast.error('Keranjang belanja masih kosong.');
     }
 
-    return (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Breadcrumbs */}
-            <nav className="flex items-center gap-2 mb-6 text-sm font-medium">
-                <Link href="/cart" className="text-slate-400 hover:text-amber-500 transition-colors">
-                    Keranjang
-                </Link>
-                <ChevronRight className="w-4 h-4 text-slate-300" />
-                <span className="text-slate-900 font-bold">Checkout</span>
-                <ChevronRight className="w-4 h-4 text-slate-300" />
-                <span className="text-slate-400">Pembayaran</span>
-            </nav>
+    if (!formData.name || !formData.phone || !formData.address || !formData.city) {
+      return toast.error('Mohon lengkapi semua field yang diperlukan');
+    }
 
-            {/* Page Heading */}
-            <div className="mb-8">
-                <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 uppercase">Checkout</h1>
-                <p className="text-slate-500 mt-1 text-sm">Lengkapi detail pengiriman dan pembayaran untuk menyelesaikan pesanan.</p>
+    setIsProcessing(true);
+
+    // Menyiapkan item_details untuk Midtrans agar sinkron dengan gross_amount
+    const midtransItems = cartItems.map((item) => ({
+      id: String(item.productId).substring(0, 50),
+      price: Math.round(item.price),
+      quantity: item.quantity,
+      name: item.name.substring(0, 50),
+    }));
+
+    midtransItems.push({ id: 'shipping', price: shippingCost, quantity: 1, name: 'Ongkos Kirim' });
+    midtransItems.push({ id: 'tax', price: tax, quantity: 1, name: 'Pajak (11%)' });
+
+    const orderDetails = {
+      orderId: `TR-${Date.now()}`,
+      userId: user.uid,
+      total: Math.round(total),
+      items: cartItems.map((item) => ({
+        id: item.productId,
+        price: item.price,
+        quantity: item.quantity,
+        name: item.name,
+      })),
+      midtransItems,
+      shippingMethod,
+      shippingCost,
+      customerDetails: {
+        first_name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        shipping_address: {
+          first_name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          postal_code: formData.postalCode || '00000',
+          country_code: 'IDN',
+        },
+        billing_address: {
+          first_name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          postal_code: formData.postalCode || '00000',
+          country_code: 'IDN',
+        },
+      },
+    };
+
+    try {
+      const res = await fetch('/api/create-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderDetails),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      window.snap.pay(data.token, {
+        onSuccess: (result: any) =>
+          router.push(`/payment/success?order_id=${data.orderId}&transaction_id=${result.transaction_id}`),
+        onPending: (result: any) =>
+          router.push(`/payment/pending?order_id=${data.orderId}&transaction_id=${result.transaction_id}`),
+        onError: () => toast.error('Pembayaran gagal.'),
+        onClose: () => toast.info('Popup ditutup.'),
+      });
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal membuat transaksi.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8">
+        <div className="mb-8 flex items-center gap-2 text-sm">
+          <div className="h-4 w-12 rounded bg-slate-200 animate-pulse" />
+          <ChevronRight className="h-4 w-4 text-slate-200" />
+          <div className="h-4 w-24 rounded bg-slate-200 animate-pulse" />
+        </div>
+
+        <div className="mb-10 space-y-3">
+          <div className="h-8 w-56 rounded bg-slate-200 animate-pulse" />
+          <div className="h-4 w-80 max-w-full rounded bg-slate-100 animate-pulse" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+          <div className="lg:col-span-8 space-y-6">
+            <div className="h-96 rounded-2xl border border-slate-100 bg-white p-6 animate-pulse" />
+            <div className="h-52 rounded-2xl border border-slate-100 bg-white p-6 animate-pulse" />
+          </div>
+          <div className="lg:col-span-4">
+            <div className="h-[520px] rounded-2xl border border-slate-100 bg-white p-6 animate-pulse" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (cartItems.length === 0) {
+    return (
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8">
+        <nav className="flex items-center gap-2 mb-6 text-sm">
+          <Link href="/" className="text-slate-400 hover:text-amber-500 transition-colors">
+            Home
+          </Link>
+          <ChevronRight className="w-4 h-4 text-slate-300" />
+          <span className="text-slate-900 font-bold">Checkout</span>
+        </nav>
+
+        <section className="min-h-[55vh] flex items-center justify-center">
+          <div className="max-w-md text-center">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-900">
+              <ShoppingBag className="h-9 w-9" />
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tight text-slate-900">
+              Keranjang Kosong
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              Tambahkan produk favorit Anda terlebih dahulu sebelum melanjutkan ke pembayaran.
+            </p>
+            <Link
+              href="/product"
+              className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-xs font-black uppercase tracking-[0.2em] text-white transition-all hover:bg-amber-500"
+            >
+              Mulai Belanja
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8">
+      <Script
+        src="https://app.sandbox.midtrans.com/snap/snap.js"
+        data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
+        strategy="lazyOnload"
+      />
+
+      <nav className="flex items-center gap-2 mb-6 text-sm">
+        <Link href="/" className="text-slate-400 hover:text-amber-500 transition-colors">
+          Home
+        </Link>
+        <ChevronRight className="w-4 h-4 text-slate-300" />
+        <Link href="/cart" className="text-slate-400 hover:text-amber-500 transition-colors">
+          Keranjang
+        </Link>
+        <ChevronRight className="w-4 h-4 text-slate-300" />
+        <span className="text-slate-900 font-bold">Checkout</span>
+      </nav>
+
+      <div className="mb-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-600">
+            <Lock className="h-3.5 w-3.5" />
+            Secure Checkout
+          </span>
+          <h1 className="text-2xl lg:text-4xl font-black text-slate-900 uppercase tracking-tight">
+            Selesaikan Pesanan
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+            Lengkapi detail pengiriman Anda. Pembayaran akan diproses secara aman melalui Midtrans.
+          </p>
+        </div>
+
+        <Link
+          href="/cart"
+          className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-500 transition-colors hover:text-amber-500"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Kembali ke Keranjang
+        </Link>
+      </div>
+
+      <form onSubmit={handleCheckout} className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+        <div className="lg:col-span-8 space-y-6">
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6 lg:p-8">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white">
+                  <UserRound className="h-5 w-5" />
+                </div>
+                <h2 className="text-lg font-black uppercase tracking-tight text-slate-900">
+                  Informasi Penerima
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Pastikan nomor telepon aktif agar kurir dapat menghubungi Anda.
+                </p>
+              </div>
+              {user && (
+                <div className="hidden rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-600 sm:inline-flex">
+                  Login
+                </div>
+              )}
             </div>
 
-            <form onSubmit={handleCheckout} className="flex flex-col lg:flex-row gap-8">
-                {/* Left Column: Shipping & Payment */}
-                <div className="flex-1 space-y-6 lg:space-y-8">
-                    {/* Shipping Address Section */}
-                    <section className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="p-5 lg:p-6 border-b border-slate-100">
-                            <h2 className="text-lg font-bold flex items-center gap-2 uppercase tracking-tight">
-                                <Truck className="w-5 h-5 text-amber-500" />
-                                Informasi Pengiriman
-                            </h2>
-                        </div>
-                        <div className="p-5 lg:p-6 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <label className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-widest">Nama Lengkap</span>
-                                    <input
-                                        name="name"
-                                        value={formData.name}
-                                        onChange={handleInputChange}
-                                        className="rounded-xl border-2 border-slate-200 focus:ring-0 focus:border-amber-500 focus:shadow-[0_0_0_4px_rgba(245,158,11,0.1)] text-sm py-4 px-5 transition-all duration-200 hover:border-slate-300"
-                                        placeholder="John Doe"
-                                        required
-                                    />
-                                </label>
-                                <label className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-widest">Nomor Telepon</span>
-                                    <input
-                                        name="phone"
-                                        value={formData.phone}
-                                        onChange={handleInputChange}
-                                        type="tel"
-                                        className="rounded-xl border-2 border-slate-200 focus:ring-0 focus:border-amber-500 focus:shadow-[0_0_0_4px_rgba(245,158,11,0.1)] text-sm py-4 px-5 transition-all duration-200 hover:border-slate-300"
-                                        placeholder="+62 812 3456 7890"
-                                        required
-                                    />
-                                </label>
-                            </div>
-                            <label className="flex flex-col">
-                                <span className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-widest">Alamat Lengkap</span>
-                                <textarea
-                                    name="address"
-                                    value={formData.address}
-                                    onChange={handleInputChange}
-                                    className="rounded-xl border-2 border-slate-200 focus:ring-0 focus:border-amber-500 focus:shadow-[0_0_0_4px_rgba(245,158,11,0.1)] text-sm py-4 px-5 transition-all duration-200 hover:border-slate-300"
-                                    placeholder="Jl. Sudirman No. 123, Jakarta Pusat"
-                                    rows={2}
-                                    required
-                                />
-                            </label>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <label className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-widest">Kota</span>
-                                    <input
-                                        name="city"
-                                        value={formData.city}
-                                        onChange={handleInputChange}
-                                        className="rounded-xl border-2 border-slate-200 focus:ring-0 focus:border-amber-500 focus:shadow-[0_0_0_4px_rgba(245,158,11,0.1)] text-sm py-4 px-5 transition-all duration-200 hover:border-slate-300"
-                                        placeholder="Jakarta"
-                                        required
-                                    />
-                                </label>
-                                <label className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-widest">Provinsi</span>
-                                    <input
-                                        name="province"
-                                        value={formData.province}
-                                        onChange={handleInputChange}
-                                        className="rounded-xl border-2 border-slate-200 focus:ring-0 focus:border-amber-500 focus:shadow-[0_0_0_4px_rgba(245,158,11,0.1)] text-sm py-4 px-5 transition-all duration-200 hover:border-slate-300"
-                                        placeholder="DKI Jakarta"
-                                    />
-                                </label>
-                                <label className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-widest">Kode Pos</span>
-                                    <input
-                                        name="postalCode"
-                                        value={formData.postalCode}
-                                        onChange={handleInputChange}
-                                        className="rounded-xl border-2 border-slate-200 focus:ring-0 focus:border-amber-500 focus:shadow-[0_0_0_4px_rgba(245,158,11,0.1)] text-sm py-4 px-5 transition-all duration-200 hover:border-slate-300"
-                                        placeholder="10210"
-                                    />
-                                </label>
-                            </div>
-                        </div>
-                    </section>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  Nama Lengkap <span className="text-rose-500">*</span>
+                </span>
+                <input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className={inputClassName}
+                  placeholder="Nama penerima"
+                />
+              </label>
 
-                    {/* Shipping Method Section */}
-                    <section className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="p-5 lg:p-6 border-b border-slate-100">
-                            <h2 className="text-lg font-bold flex items-center gap-2 uppercase tracking-tight">
-                                <Zap className="w-5 h-5 text-amber-500" />
-                                Metode Pengiriman
-                            </h2>
-                        </div>
-                        <div className="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            {(Object.keys(shippingOptions) as ShippingMethod[]).map((key) => {
-                                const option = shippingOptions[key];
-                                const Icon = option.icon;
-                                const isSelected = shippingMethod === key;
-                                return (
-                                    <label
-                                        key={key}
-                                        className={`relative border-2 rounded-xl p-4 cursor-pointer flex flex-col gap-1 transition-all ${isSelected
-                                            ? 'border-amber-500 bg-amber-50'
-                                            : 'border-slate-100 hover:border-amber-300'
-                                            }`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="shipping"
-                                            checked={isSelected}
-                                            onChange={() => setShippingMethod(key)}
-                                            className="absolute top-3 right-3 text-amber-500 focus:ring-amber-500"
-                                        />
-                                        <Icon className={`w-5 h-5 mb-1 ${isSelected ? 'text-amber-500' : 'text-slate-400'}`} />
-                                        <span className="font-bold text-sm">{option.name}</span>
-                                        <span className="text-xs text-slate-500">{option.days}</span>
-                                        <span className={`font-bold mt-2 ${isSelected ? 'text-amber-600' : 'text-slate-900'}`}>
-                                            Rp {option.price.toLocaleString('id-ID')}
-                                        </span>
-                                    </label>
-                                );
-                            })}
-                        </div>
-                    </section>
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  Email
+                </span>
+                <input
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className={inputClassName}
+                  placeholder="email@contoh.com"
+                />
+              </label>
 
-                    {/* Payment Method Section - Midtrans */}
-                    <section className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="p-5 lg:p-6 border-b border-slate-100">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-bold flex items-center gap-2 uppercase tracking-tight">
-                                    <CreditCard className="w-5 h-5 text-amber-500" />
-                                    Metode Pembayaran
-                                </h2>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Powered by</span>
-                                    <span className="text-xs font-bold text-blue-600">Midtrans</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="p-5 lg:p-6 space-y-6">
-                            {/* Info Banner */}
-                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-3">
-                                <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-sm font-medium text-blue-900">Pembayaran Aman dengan Midtrans</p>
-                                    <p className="text-xs text-blue-700 mt-1">Pilih metode pembayaran di popup Midtrans setelah klik &quot;Bayar Sekarang&quot;. Tersedia berbagai opsi pembayaran.</p>
-                                </div>
-                            </div>
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  Nomor Telepon <span className="text-rose-500">*</span>
+                </span>
+                <input
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className={inputClassName}
+                  placeholder="08xxxxxxxxxx"
+                />
+              </label>
 
-                            {/* Available Payment Methods */}
-                            <div className="space-y-4">
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Metode Pembayaran Tersedia</p>
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  Kode Pos
+                </span>
+                <input
+                  name="postalCode"
+                  value={formData.postalCode}
+                  onChange={handleInputChange}
+                  className={inputClassName}
+                  placeholder="12345"
+                />
+              </label>
+            </div>
+          </section>
 
-                                {/* E-Wallets */}
-                                <div className="space-y-2">
-                                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">E-Wallet</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {[
-                                            { name: 'GoPay', color: 'bg-green-100 text-green-700' },
-                                            { name: 'ShopeePay', color: 'bg-orange-100 text-orange-700' },
-                                            { name: 'QRIS', color: 'bg-purple-100 text-purple-700' },
-                                        ].map((wallet) => (
-                                            <span key={wallet.name} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${wallet.color}`}>
-                                                {wallet.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6 lg:p-8">
+            <div className="mb-6">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white">
+                <MapPin className="h-5 w-5" />
+              </div>
+              <h2 className="text-lg font-black uppercase tracking-tight text-slate-900">
+                Alamat Pengiriman
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Isi alamat lengkap untuk menghindari kendala pengiriman.
+              </p>
+            </div>
 
-                                {/* Virtual Account */}
-                                <div className="space-y-2">
-                                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Virtual Account / Bank Transfer</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {[
-                                            { name: 'BCA', color: 'bg-blue-100 text-blue-700' },
-                                            { name: 'BNI', color: 'bg-orange-100 text-orange-700' },
-                                            { name: 'BRI', color: 'bg-blue-100 text-blue-700' },
-                                            { name: 'Mandiri', color: 'bg-yellow-100 text-yellow-700' },
-                                            { name: 'Permata', color: 'bg-teal-100 text-teal-700' },
-                                            { name: 'CIMB', color: 'bg-red-100 text-red-700' },
-                                        ].map((bank) => (
-                                            <span key={bank.name} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${bank.color}`}>
-                                                {bank.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <label className="space-y-2 sm:col-span-2">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  Alamat Lengkap <span className="text-rose-500">*</span>
+                </span>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  className={`${inputClassName} min-h-32 resize-none`}
+                  placeholder="Nama jalan, nomor rumah, RT/RW, patokan, dan detail lainnya"
+                />
+              </label>
 
-                                {/* Credit/Debit Card */}
-                                <div className="space-y-2">
-                                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Kartu Kredit / Debit</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {[
-                                            { name: 'Visa', color: 'bg-indigo-100 text-indigo-700' },
-                                            { name: 'Mastercard', color: 'bg-red-100 text-red-700' },
-                                            { name: 'JCB', color: 'bg-green-100 text-green-700' },
-                                            { name: 'Amex', color: 'bg-blue-100 text-blue-700' },
-                                        ].map((card) => (
-                                            <span key={card.name} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${card.color}`}>
-                                                {card.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  Kota/Kabupaten <span className="text-rose-500">*</span>
+                </span>
+                <input
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  className={inputClassName}
+                  placeholder="Contoh: Jakarta Selatan"
+                />
+              </label>
 
-                                {/* Other Methods */}
-                                <div className="space-y-2">
-                                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Lainnya</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {[
-                                            { name: 'Alfamart', color: 'bg-red-100 text-red-700' },
-                                            { name: 'Indomaret', color: 'bg-blue-100 text-blue-700' },
-                                            { name: 'Akulaku', color: 'bg-purple-100 text-purple-700' },
-                                            { name: 'Kredivo', color: 'bg-teal-100 text-teal-700' },
-                                        ].map((method) => (
-                                            <span key={method.name} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${method.color}`}>
-                                                {method.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  Provinsi
+                </span>
+                <input
+                  name="province"
+                  value={formData.province}
+                  onChange={handleInputChange}
+                  className={inputClassName}
+                  placeholder="Contoh: DKI Jakarta"
+                />
+              </label>
+            </div>
+          </section>
 
-                            {/* Security Note */}
-                            <div className="pt-4 border-t border-slate-100">
-                                <div className="flex items-center gap-2 text-slate-500">
-                                    <Lock className="w-4 h-4" />
-                                    <p className="text-xs">Transaksi dilindungi dengan enkripsi SSL 256-bit</p>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6 lg:p-8">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white">
+                  <Truck className="h-5 w-5" />
                 </div>
+                <h2 className="text-lg font-black uppercase tracking-tight text-slate-900">
+                  Metode Pengiriman
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Pilih opsi pengiriman yang paling sesuai.
+                </p>
+              </div>
+            </div>
 
-                {/* Right Column: Order Summary (Sticky) */}
-                <div className="lg:w-[400px]">
-                    <div className="sticky top-24 space-y-6">
-                        <section className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden">
-                            <div className="p-5 lg:p-6 border-b border-slate-100">
-                                <h2 className="text-lg font-bold uppercase tracking-tight">Ringkasan Pesanan</h2>
-                            </div>
-                            <div className="p-5 lg:p-6 space-y-6">
-                                {/* Items List */}
-                                <div className="space-y-4 max-h-[300px] overflow-y-auto">
-                                    {cartItems.map(item => (
-                                        <div key={item.id} className="flex gap-4">
-                                            <div
-                                                className="h-20 w-20 bg-slate-100 rounded-lg flex-shrink-0 bg-cover bg-center border border-slate-100"
-                                                style={{ backgroundImage: `url('${item.image || '/placeholder.jpg'}')` }}
-                                            />
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="font-bold text-sm leading-tight line-clamp-2">{item.name}</h3>
-                                                <p className="text-xs text-slate-500 mt-1">Qty: {item.quantity}</p>
-                                                <div className="flex justify-between items-center mt-2">
-                                                    <span className="font-bold text-sm">
-                                                        Rp {(item.price * item.quantity).toLocaleString('id-ID')}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+            <div className="grid grid-cols-1 gap-3">
+              {(Object.entries(shippingOptions) as [ShippingMethod, typeof shippingOptions[ShippingMethod]][]).map(
+                ([key, option]) => {
+                  const Icon = option.icon;
+                  const isSelected = shippingMethod === key;
 
-                                {/* Cost Breakdown */}
-                                <div className="pt-6 border-t border-slate-100 space-y-3">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-slate-500">Subtotal</span>
-                                        <span className="font-medium">Rp {subtotal.toLocaleString('id-ID')}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-slate-500">Pengiriman ({shippingOptions[shippingMethod].name})</span>
-                                        <span className="font-medium">Rp {shippingCost.toLocaleString('id-ID')}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-slate-500">Pajak (11%)</span>
-                                        <span className="font-medium">Rp {tax.toLocaleString('id-ID')}</span>
-                                    </div>
-                                    <div className="flex justify-between text-xl font-black pt-4 text-amber-600">
-                                        <span>Total</span>
-                                        <span>Rp {total.toLocaleString('id-ID')}</span>
-                                    </div>
-                                </div>
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setShippingMethod(key)}
+                      className={`flex items-start gap-4 rounded-2xl border p-4 text-left transition-all ${
+                        isSelected
+                          ? 'border-slate-900 bg-slate-900 text-white shadow-lg shadow-slate-900/10'
+                          : 'border-slate-200 bg-white hover:border-slate-900 hover:shadow-sm'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                          isSelected ? 'bg-white/10 text-amber-400' : 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
 
-                                {/* Pay Button */}
-                                <button
-                                    type="submit"
-                                    disabled={isProcessing}
-                                    className="w-full bg-slate-900 hover:bg-amber-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 uppercase tracking-widest text-xs"
-                                >
-                                    {isProcessing ? (
-                                        <>
-                                            <Loader2 className="animate-spin h-4 w-4" />
-                                            Memproses...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Lock className="w-4 h-4" />
-                                            Bayar Rp {total.toLocaleString('id-ID')}
-                                        </>
-                                    )}
-                                </button>
+                      <span className="flex-1">
+                        <span className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <span className="font-black uppercase tracking-tight">{option.name}</span>
+                          <span className={isSelected ? 'font-black text-amber-400' : 'font-black text-slate-900'}>
+                            Rp {option.price.toLocaleString('id-ID')}
+                          </span>
+                        </span>
+                        <span className={`mt-1 block text-sm ${isSelected ? 'text-white/70' : 'text-slate-500'}`}>
+                          Estimasi {option.days} · {option.description}
+                        </span>
+                      </span>
 
-                                <p className="text-[11px] text-center text-slate-400">
-                                    Dengan melanjutkan, Anda menyetujui{' '}
-                                    <Link href="/terms" className="underline hover:text-amber-500">Syarat & Ketentuan</Link>.
-                                    Pembayaran aman oleh Midtrans.
-                                </p>
-                            </div>
-                        </section>
+                      <span
+                        className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                          isSelected ? 'border-amber-400 bg-amber-400 text-slate-900' : 'border-slate-300'
+                        }`}
+                      >
+                        {isSelected && <CheckCircle2 className="h-4 w-4" />}
+                      </span>
+                    </button>
+                  );
+                },
+              )}
+            </div>
+          </section>
+        </div>
 
-                        {/* Trust Badges */}
-                        <div className="flex items-center justify-center gap-6">
-                            <div className="flex items-center gap-1 text-slate-400">
-                                <Shield className="w-4 h-4" />
-                                <span className="text-[10px] font-bold uppercase tracking-widest">SSL Secure</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-slate-400">
-                                <Lock className="w-4 h-4" />
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Encrypted</span>
-                            </div>
-                        </div>
-                    </div>
+        <aside className="lg:col-span-4 lg:sticky lg:top-24">
+          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="bg-slate-900 p-6 text-white">
+              <div className="mb-2 flex items-center justify-between gap-4">
+                <h2 className="text-lg font-black uppercase tracking-tight">Ringkasan Pesanan</h2>
+                <PackageCheck className="h-5 w-5 text-amber-400" />
+              </div>
+              <p className="text-sm text-white/60">
+                {cartItems.length} produk · Pengiriman {selectedShipping.name}
+              </p>
+            </div>
+
+            <div className="max-h-[340px] space-y-4 overflow-y-auto border-b border-slate-100 p-5">
+              {cartItems.map((item) => (
+                <div key={item.id} className="flex gap-4">
+                  <Link
+                    href={`/product/${item.productId || item.id}`}
+                    className="h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100"
+                  >
+                    <div
+                      className="h-full w-full bg-cover bg-center transition-transform duration-500 hover:scale-105"
+                      style={{ backgroundImage: `url("${item.image || '/placeholder.jpg'}")` }}
+                    />
+                  </Link>
+
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/product/${item.productId || item.id}`}
+                      className="line-clamp-2 text-sm font-bold text-slate-900 transition-colors hover:text-amber-500"
+                    >
+                      {item.name}
+                    </Link>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {item.quantity} x Rp {item.price.toLocaleString('id-ID')}
+                    </p>
+                    <p className="mt-2 text-sm font-black text-slate-900">
+                      Rp {(item.price * item.quantity).toLocaleString('id-ID')}
+                    </p>
+                  </div>
                 </div>
-            </form>
-        </main>
-    );
+              ))}
+            </div>
+
+            <div className="p-5">
+              <div className="space-y-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Subtotal</span>
+                  <span className="font-bold text-slate-900">Rp {subtotal.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Pengiriman ({selectedShipping.name})</span>
+                  <span className="font-bold text-slate-900">Rp {shippingCost.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">PPN (11%)</span>
+                  <span className="font-bold text-slate-900">Rp {tax.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="border-t border-dashed border-slate-200 pt-4">
+                  <div className="flex items-end justify-between gap-4">
+                    <span className="font-black uppercase tracking-tight text-slate-900">Total</span>
+                    <span className="text-2xl font-black text-amber-500">
+                      Rp {Math.round(total).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="mt-6 flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-slate-900 px-6 text-sm font-black uppercase tracking-[0.16em] text-white transition-all hover:bg-amber-500 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Memproses
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-5 w-5" />
+                    Bayar Sekarang
+                  </>
+                )}
+              </button>
+
+              <div className="mt-5 grid grid-cols-1 gap-3 text-xs text-slate-500">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-emerald-500" />
+                  Pembayaran aman dan terenkripsi via Midtrans.
+                </div>
+                <div className="flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-amber-500" />
+                  Estimasi tiba: {selectedShipping.days} setelah pembayaran.
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </form>
+    </main>
+  );
 }

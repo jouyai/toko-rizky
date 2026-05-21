@@ -1,20 +1,18 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";        // <-- Pastikan baris ini ada!
+import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC0t5xX22E0EkeqQSHiMLfWpsUy34VfKbg",
-  authDomain: "ecom-dang.firebaseapp.com",
-  projectId: "ecom-dang",
-  storageBucket: "ecom-dang.firebasestorage.app",
-  messagingSenderId: "624249605908",
-  appId: "1:624249605908:web:038ac2c4d704380769fc01",
-  measurementId: "G-MQEWJVG62W"
+  apiKey: "AIzaSyDKMZ0fk1JlemG2latkJqx5Y4y4OBqwv4U",
+  authDomain: "toko-rizky-ef952.firebaseapp.com",
+  projectId: "toko-rizky-ef952",
+  storageBucket: "toko-rizky-ef952.firebasestorage.app",
+  messagingSenderId: "446526359406",
+  appId: "1:446526359406:web:1ba07e297203d5d4bb637f",
+  measurementId: "G-B2103D3HJ8"
 };
 
-// Logika untuk mencegah inisialisasi ganda (penyebab error sebelumnya)
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Export auth dan db agar bisa dipakai di file lain
 export const auth = getAuth(app);
 export const db = getFirestore(app);

@@ -1,77 +1,119 @@
 import { NextResponse } from 'next/server';
 import midtransClient from 'midtrans-client';
 import { db } from '@/firebase';
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
 
-// Inisialisasi Snap Client (diluar handler agar tidak re-init setiap request)
 const snap = new midtransClient.Snap({
   isProduction: false,
   serverKey: process.env.MIDTRANS_SERVER_KEY || '',
   clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || '',
 });
 
+const core = new midtransClient.CoreApi({
+  isProduction: false,
+  serverKey: process.env.MIDTRANS_SERVER_KEY || '',
+  clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || '',
+});
+
+const mapMidtransStatusToOrderStatus = (transactionStatus?: string, fraudStatus?: string) => {
+  if (transactionStatus === 'capture') {
+    return fraudStatus === 'challenge' ? 'pending' : 'paid';
+  }
+
+  if (transactionStatus === 'settlement') return 'paid';
+  if (transactionStatus === 'pending') return 'pending';
+  if (transactionStatus === 'deny') return 'denied';
+  if (transactionStatus === 'cancel') return 'cancelled';
+  if (transactionStatus === 'expire') return 'expired';
+  if (transactionStatus === 'failure') return 'failed';
+
+  return transactionStatus || 'pending';
+};
+
 export async function POST(request: Request) {
   try {
-    // 1. Terima data dengan nama 'customerDetails' (sesuai yang dikirim frontend)
-    const { orderId, total, items, customerDetails, userId } = await request.json();
+    const { orderId, total, items, midtransItems, customerDetails, userId, shippingMethod, shippingCost } =
+      await request.json();
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-    // 2. Siapkan Parameter Midtrans
     const parameter = {
-      transaction_details: {
-        order_id: orderId,
-        gross_amount: total,
-      },
-      item_details: items,
-      // Gunakan customerDetails langsung karena strukturnya sudah kita samakan di frontend
-      customer_details: {
-        first_name: customerDetails.first_name,
-        email: customerDetails.email,
-        phone: customerDetails.phone,
-        billing_address: customerDetails.billing_address,
-        shipping_address: customerDetails.shipping_address,
-      },
-      credit_card: {
-        secure: true,
-      },
+      transaction_details: { order_id: orderId, gross_amount: Math.round(total) },
+      item_details: midtransItems,
+      customer_details: customerDetails,
+      credit_card: { secure: true },
       callbacks: {
-        finish: `${baseUrl}/payment/finish`,
-        error: `${baseUrl}/payment/error`,
-        unfinish: `${baseUrl}/payment/pending`,
+        finish: `${baseUrl}/payment/success?order_id=${orderId}`,
+        error: `${baseUrl}/payment/error?order_id=${orderId}`,
+        unfinish: `${baseUrl}/payment/pending?order_id=${orderId}`,
       },
     };
 
-    // 3. Minta Token ke Midtrans
     const transaction = await snap.createTransaction(parameter);
 
-    // 4. SIMPAN DATA ORDER KE FIRESTORE (Status: PENDING)
-    // Penting: Simpan customerDetails agar alamat dan info pembeli terekam di database
     await setDoc(doc(db, 'orders', orderId), {
       orderId,
       userId: userId || 'guest',
       items,
       total,
-      status: 'pending', // Status awal
-      customerDetails,   // Simpan data pembeli lengkap
+      status: 'pending',
+      customerDetails,
+      shippingMethod: shippingMethod || null,
+      shippingCost: shippingCost || 0,
       paymentToken: transaction.token,
+      paymentRedirectUrl: transaction.redirect_url || null,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
 
-    return NextResponse.json({ 
-      token: transaction.token,
-      orderId: orderId 
-    });
-
+    return NextResponse.json({ token: transaction.token, orderId });
   } catch (error: any) {
-    console.error("Midtrans API Error:", error.message);
-    return new NextResponse(
-      JSON.stringify({ message: error.message || "Terjadi kesalahan pada server pembayaran" }), 
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
+    return NextResponse.json({ message: error.message }, { status: 500 });
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const orderId = searchParams.get('order_id');
+
+    if (!orderId) {
+      return NextResponse.json({ message: 'order_id wajib diisi.' }, { status: 400 });
+    }
+
+    const statusResponse = await core.transaction.status(orderId);
+    const orderStatus = mapMidtransStatusToOrderStatus(
+      statusResponse.transaction_status,
+      statusResponse.fraud_status,
     );
+
+    let firestoreUpdateError: string | null = null;
+
+    try {
+      await updateDoc(doc(db, 'orders', orderId), {
+        status: orderStatus,
+        transactionId: statusResponse.transaction_id || null,
+        paymentType: statusResponse.payment_type || null,
+        transactionStatus: statusResponse.transaction_status || null,
+        fraudStatus: statusResponse.fraud_status || null,
+        settlementTime: statusResponse.settlement_time || null,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (firestoreError: any) {
+      firestoreUpdateError = firestoreError.message || 'Gagal memperbarui order di Firestore.';
+      console.error('Firestore order update failed:', firestoreError);
+    }
+
+    return NextResponse.json({
+      orderId,
+      status: orderStatus,
+      transactionId: statusResponse.transaction_id || null,
+      paymentType: statusResponse.payment_type || null,
+      transactionStatus: statusResponse.transaction_status || null,
+      fraudStatus: statusResponse.fraud_status || null,
+      firestoreUpdateError,
+      raw: statusResponse,
+    });
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || 'Gagal mengecek status transaksi.' }, { status: 500 });
   }
 }
