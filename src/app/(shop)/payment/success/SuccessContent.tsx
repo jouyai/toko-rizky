@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
 import { useAuth } from '@/lib/AuthContext';
+import { useCart } from '@/lib/CartContext';
+import { updateOrderStatus } from '@/controllers/orderController';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -13,18 +13,17 @@ export default function SuccessContent() {
     const orderId = searchParams.get('order_id');
     const transactionId = searchParams.get('transaction_id');
     const { user } = useAuth();
+    const { clearCart } = useCart();
     const [isUpdated, setIsUpdated] = useState(false);
 
     useEffect(() => {
         const confirmPayment = async () => {
             if (orderId && user) {
                 try {
-                    const orderRef = doc(db, 'orders', orderId);
-                    await updateDoc(orderRef, {
-                        status: 'paid',
+                    await updateOrderStatus(orderId, 'paid', {
                         transactionId: transactionId || 'N/A',
-                        updatedAt: new Date()
                     });
+                    await clearCart();
                     setIsUpdated(true);
                 } catch (error) {
                     console.error("Gagal update status:", error);
@@ -43,7 +42,7 @@ export default function SuccessContent() {
             <div className="bg-slate-50 p-4 rounded-lg border text-sm text-left">
                 <p>Transaction ID: <span className="font-bold">{transactionId || 'N/A'}</span></p>
             </div>
-            <Link href="/dashboard/orders" className="block w-full bg-slate-900 text-white py-3 rounded-xl font-bold">Lihat Pesanan</Link>
+            <Link href="/profile" className="block w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-amber-500 transition-colors">Lihat Pesanan</Link>
         </div>
     );
 }

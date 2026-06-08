@@ -1,18 +1,8 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
-import { collection, getDocs, onSnapshot, query, writeBatch } from 'firebase/firestore';
-import { db } from '@/firebase';
 import { useAuth } from './AuthContext';
-
-interface CartItem {
-  id: string;
-  productId: string;
-  name: string;
-  price: number;
-  image: string;
-  quantity: number;
-}
+import { listenCart, clearCart as clearCartController, CartItem } from '@/controllers/cartController';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -36,21 +26,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (user) {
       setLoading(true);
-      const cartRef = collection(db, 'users', user.uid, 'cart');
-      const q = query(cartRef);
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const items = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as CartItem[];
+      const unsubscribe = listenCart(user.uid, (items) => {
         setCartItems(items);
         setLoading(false);
       });
 
       return () => unsubscribe();
     } else {
-      // Jika user logout, kosongkan keranjang
       setCartItems([]);
       setLoading(false);
     }
@@ -58,21 +40,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = useCallback(async () => {
     if (!user) return;
-
-    const cartRef = collection(db, 'users', user.uid, 'cart');
-    const snapshot = await getDocs(cartRef);
-
-    if (snapshot.empty) {
-      setCartItems([]);
-      return;
-    }
-
-    const batch = writeBatch(db);
-    snapshot.docs.forEach((cartDoc) => {
-      batch.delete(cartDoc.ref);
-    });
-
-    await batch.commit();
+    await clearCartController(user.uid);
     setCartItems([]);
   }, [user]);
 

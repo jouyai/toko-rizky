@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import midtransClient from 'midtrans-client';
-import { db } from '@/firebase';
-import { doc, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { saveOrderToFirestore, mapMidtransStatus, updateOrderStatus } from '@/controllers/orderController';
 
 const snap = new midtransClient.Snap({
   isProduction: false,
@@ -14,21 +13,6 @@ const core = new midtransClient.CoreApi({
   serverKey: process.env.MIDTRANS_SERVER_KEY || '',
   clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || '',
 });
-
-const mapMidtransStatusToOrderStatus = (transactionStatus?: string, fraudStatus?: string) => {
-  if (transactionStatus === 'capture') {
-    return fraudStatus === 'challenge' ? 'pending' : 'paid';
-  }
-
-  if (transactionStatus === 'settlement') return 'paid';
-  if (transactionStatus === 'pending') return 'pending';
-  if (transactionStatus === 'deny') return 'denied';
-  if (transactionStatus === 'cancel') return 'cancelled';
-  if (transactionStatus === 'expire') return 'expired';
-  if (transactionStatus === 'failure') return 'failed';
-
-  return transactionStatus || 'pending';
-};
 
 export async function POST(request: Request) {
   try {
@@ -50,19 +34,16 @@ export async function POST(request: Request) {
 
     const transaction = await snap.createTransaction(parameter);
 
-    await setDoc(doc(db, 'orders', orderId), {
+    await saveOrderToFirestore({
       orderId,
       userId: userId || 'guest',
       items,
       total,
-      status: 'pending',
       customerDetails,
       shippingMethod: shippingMethod || null,
       shippingCost: shippingCost || 0,
       paymentToken: transaction.token,
       paymentRedirectUrl: transaction.redirect_url || null,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
     });
 
     return NextResponse.json({ token: transaction.token, orderId });
@@ -81,7 +62,7 @@ export async function GET(request: Request) {
     }
 
     const statusResponse = await core.transaction.status(orderId);
-    const orderStatus = mapMidtransStatusToOrderStatus(
+    const orderStatus = mapMidtransStatus(
       statusResponse.transaction_status,
       statusResponse.fraud_status,
     );
@@ -89,14 +70,12 @@ export async function GET(request: Request) {
     let firestoreUpdateError: string | null = null;
 
     try {
-      await updateDoc(doc(db, 'orders', orderId), {
-        status: orderStatus,
+      await updateOrderStatus(orderId, orderStatus, {
         transactionId: statusResponse.transaction_id || null,
         paymentType: statusResponse.payment_type || null,
         transactionStatus: statusResponse.transaction_status || null,
         fraudStatus: statusResponse.fraud_status || null,
         settlementTime: statusResponse.settlement_time || null,
-        updatedAt: Timestamp.now(),
       });
     } catch (firestoreError: any) {
       firestoreUpdateError = firestoreError.message || 'Gagal memperbarui order di Firestore.';

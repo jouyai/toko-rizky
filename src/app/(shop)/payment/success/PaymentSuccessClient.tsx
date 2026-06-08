@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useCart } from '@/lib/CartContext';
-import { db } from '@/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { updateOrderStatus } from '@/controllers/orderController';
 
 type PaymentStatus = {
   orderId: string;
@@ -54,13 +53,11 @@ export default function PaymentSuccessClient() {
         if (!hasClearedCart && (data.status === 'paid' || data.status === 'success' || data.transactionId)) {
           await Promise.allSettled([
             clearCart(),
-            updateDoc(doc(db, 'orders', orderId), {
-              status: data.status || 'paid',
+            updateOrderStatus(orderId, data.status || 'paid', {
               transactionId: data.transactionId || null,
               paymentType: data.paymentType || null,
               transactionStatus: data.transactionStatus || null,
               fraudStatus: data.fraudStatus || null,
-              updatedAt: serverTimestamp(),
             }),
           ]);
           setHasClearedCart(true);
@@ -81,7 +78,7 @@ export default function PaymentSuccessClient() {
   const isPending = displayStatus === 'pending' || displayStatus === 'Checking';
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-lg">
         <div
           className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${
@@ -97,7 +94,7 @@ export default function PaymentSuccessClient() {
           )}
         </div>
 
-        <h1 className="mb-2 text-2xl font-bold text-gray-900">
+        <h1 className="mb-2 text-2xl font-bold text-slate-900">
           {isChecking
             ? 'Mengecek Pembayaran...'
             : error
@@ -107,7 +104,7 @@ export default function PaymentSuccessClient() {
                 : 'Payment Pending'}
         </h1>
 
-        <p className="mb-6 text-gray-600">
+        <p className="mb-6 text-slate-600">
           {isChecking
             ? 'Mohon tunggu, kami sedang mengambil status transaksi dari Midtrans.'
             : error
@@ -123,32 +120,32 @@ export default function PaymentSuccessClient() {
           </div>
         )}
 
-        <div className="mb-6 rounded-lg bg-gray-50 p-3 text-left text-sm">
+        <div className="mb-6 rounded-lg bg-slate-50 p-3 text-left text-sm">
           <div className="mb-1 flex justify-between gap-4">
-            <span className="text-gray-500">Order ID:</span>
-            <span className="font-mono font-medium text-gray-800">{orderId || 'N/A'}</span>
+            <span className="text-slate-500">Order ID:</span>
+            <span className="font-mono font-medium text-slate-800">{orderId || 'N/A'}</span>
           </div>
           <div className="mb-1 flex justify-between gap-4">
-            <span className="text-gray-500">Status:</span>
+            <span className="text-slate-500">Status:</span>
             <span className={`font-medium ${isPaid ? 'text-green-600' : 'text-amber-600'}`}>
               {displayStatus}
             </span>
           </div>
           <div className="mb-1 flex justify-between gap-4">
-            <span className="text-gray-500">Transaction ID:</span>
-            <span className="break-all text-right font-mono font-medium text-gray-800">
+            <span className="text-slate-500">Transaction ID:</span>
+            <span className="break-all text-right font-mono font-medium text-slate-800">
               {displayTransactionId}
             </span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-gray-500">Payment Type:</span>
-            <span className="font-medium text-gray-800">{paymentStatus?.paymentType || 'N/A'}</span>
+            <span className="text-slate-500">Payment Type:</span>
+            <span className="font-medium text-slate-800">{paymentStatus?.paymentType || 'N/A'}</span>
           </div>
         </div>
 
         <Link
           href="/profile"
-          className="inline-block w-full rounded-lg bg-black px-6 py-3 font-medium text-white transition-colors hover:bg-gray-800"
+          className="inline-block w-full rounded-xl bg-slate-900 px-6 py-3 font-bold text-white transition-colors hover:bg-amber-500 text-xs uppercase tracking-widest"
         >
           Lihat Pesanan
         </Link>

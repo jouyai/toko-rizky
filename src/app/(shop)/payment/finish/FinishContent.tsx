@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db } from '@/firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { Button } from '@/components/ui/button';
+import { doc, getDoc } from 'firebase/firestore';
+import { updateOrderStatus } from '@/controllers/orderController';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -21,7 +21,7 @@ export default function FinishContent() {
   const [message, setMessage] = useState('Memverifikasi pembayaran...');
 
   useEffect(() => {
-    const updateOrderStatus = async () => {
+    const confirmOrderUpdate = async () => {
       if (!orderId) {
         setIsUpdating(false);
         return;
@@ -31,18 +31,15 @@ export default function FinishContent() {
         // Cek status dari URL parameter Midtrans
         // Jika status_code 200 dan transaction_status settlement/capture -> Success
         if (statusCode === '200' && (transactionStatus === 'settlement' || transactionStatus === 'capture')) {
-            
+
           const orderRef = doc(db, 'orders', orderId);
-          
+
           // Cek dulu apakah order ada
           const orderSnap = await getDoc(orderRef);
-          
+
           if (orderSnap.exists()) {
-            // LAKUKAN UPDATE STATUS KE SUCCESS
-            await updateDoc(orderRef, {
-              status: 'success',
+            await updateOrderStatus(orderId, 'paid', {
               paymentMethod: 'midtrans',
-              updatedAt: new Date()
             });
             setMessage('Pembayaran Berhasil! Pesanan sedang diproses.');
           }
@@ -60,39 +57,39 @@ export default function FinishContent() {
       }
     };
 
-    updateOrderStatus();
+    confirmOrderUpdate();
   }, [orderId, statusCode, transactionStatus]);
 
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6 bg-gray-50">
+    <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6 bg-slate-50">
       <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full">
         
         {isUpdating ? (
-          <Loader2 className="w-16 h-16 text-indigo-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-16 h-16 text-amber-500 animate-spin mx-auto mb-4" />
         ) : statusCode === '200' ? (
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
         ) : (
-          <XCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <XCircle className="w-16 h-16 text-amber-500 mx-auto mb-4" />
         )}
 
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">
             {isUpdating ? 'Memproses...' : statusCode === '200' ? 'Terima Kasih!' : 'Status Pembayaran'}
         </h1>
-        
-        <p className="text-gray-600 mb-6">{message}</p>
-        
+
+        <p className="text-slate-600 mb-6">{message}</p>
+
         {orderId && (
-            <div className="bg-gray-100 p-3 rounded mb-6 text-sm font-mono text-gray-500">
+            <div className="bg-slate-100 p-3 rounded mb-6 text-sm font-mono text-slate-500">
                 Order ID: {orderId}
             </div>
         )}
 
         <div className="grid gap-3">
-          <Link href="/profile">
-             <Button className="w-full bg-indigo-600 hover:bg-indigo-700">Lihat Riwayat Pesanan</Button>
+          <Link href="/profile" className="block w-full bg-slate-900 hover:bg-amber-500 text-white rounded-xl py-3.5 text-sm font-bold uppercase tracking-widest text-center transition-all">
+            Lihat Riwayat Pesanan
           </Link>
-          <Link href="/">
-             <Button variant="outline" className="w-full">Kembali ke Beranda</Button>
+          <Link href="/" className="block w-full border-2 border-slate-200 text-slate-700 hover:border-slate-900 rounded-xl py-3.5 text-sm font-bold uppercase tracking-widest text-center transition-all">
+            Kembali ke Beranda
           </Link>
         </div>
       </div>

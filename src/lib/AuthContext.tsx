@@ -1,16 +1,9 @@
-'use client'; // <-- TAMBAHKAN BARIS INI
+'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth, db } from '@/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
-
-// Tambahkan tipe untuk data pengguna dari Firestore
-interface UserProfile {
-  name: string;
-  email: string;
-  role: 'admin' | 'buyer';
-}
+import { auth } from '@/firebase';
+import { listenUserProfile, UserProfile } from '@/controllers/authController';
 
 interface AuthContextType {
   user: User | null;
@@ -43,10 +36,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (user) {
-      const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-        if (doc.exists()) {
-          setUserProfile(doc.data() as UserProfile);
-        }
+      const unsubProfile = listenUserProfile(user.uid, (profile) => {
+        setUserProfile(profile);
         setLoading(false);
       });
       return () => unsubProfile();

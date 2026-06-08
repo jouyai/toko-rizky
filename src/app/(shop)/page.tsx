@@ -1,30 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '@/firebase';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Heart, Search } from 'lucide-react';
+import { listenProducts, listenCategories, Product, Category } from '@/controllers/productController';
 
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  image?: string;
-  secondaryImage?: string;
-  category?: string;
-  isNewSeason?: boolean;
-  discount?: number;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  description?: string;
-  image?: string;
-}
+export type { Product, Category };
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -35,11 +17,7 @@ export default function Home() {
 
   // Fetch products
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'products'), (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Product[];
+    const unsub = listenProducts((data) => {
       setProducts(data);
       setLoadingProducts(false);
     });
@@ -48,12 +26,8 @@ export default function Home() {
 
   // Fetch categories
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'categories'), (snapshot) => {
-      const categoryData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Category[];
-      setCategories(categoryData);
+    const unsub = listenCategories((data) => {
+      setCategories(data);
       setLoadingCategories(false);
     });
     return () => unsub();
@@ -77,10 +51,10 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-screen -mt-6 -mx-4">
+    <div className="min-h-screen">
       {/* Hero Section */}
       <section className="py-6 px-6">
-        <div className="relative overflow-hidden bg-slate-100 aspect-[21/9] flex items-center group rounded-lg">
+        <div className="relative overflow-hidden bg-slate-100 aspect-[21/9] flex items-center group rounded-xl">
           <div className="absolute inset-0 z-0">
             <div 
               className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
@@ -101,15 +75,11 @@ export default function Home() {
               Temukan gaya kontemporer dengan pilihan pakaian premium kami yang dikurasi khusus untuk Anda.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/product?category=wanita">
-                <button className="bg-white text-black hover:bg-amber-500 hover:text-white font-bold h-12 md:h-14 px-8 md:px-10 transition-all duration-300 uppercase text-xs tracking-widest w-full sm:w-auto">
-                  Koleksi Wanita
-                </button>
+              <Link href="/product?category=wanita" className="bg-white text-black hover:bg-amber-500 hover:text-white font-bold h-12 md:h-14 px-8 md:px-10 transition-all duration-300 uppercase text-xs tracking-widest w-full sm:w-auto inline-flex items-center justify-center">
+                Koleksi Wanita
               </Link>
-              <Link href="/product?category=pria">
-                <button className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-black font-bold h-12 md:h-14 px-8 md:px-10 transition-all duration-300 uppercase text-xs tracking-widest w-full sm:w-auto">
-                  Koleksi Pria
-                </button>
+              <Link href="/product?category=pria" className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-black font-bold h-12 md:h-14 px-8 md:px-10 transition-all duration-300 uppercase text-xs tracking-widest w-full sm:w-auto inline-flex items-center justify-center">
+                Koleksi Pria
               </Link>
             </div>
           </div>
@@ -146,60 +116,8 @@ export default function Home() {
       </section>
 
       {/* Main Content Area */}
-      <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 mt-8 lg:mt-12 px-6">
-        {/* Sidebar Filters */}
-        <aside className="w-full lg:w-64 shrink-0">
-          <div className="lg:sticky lg:top-28 space-y-8 lg:space-y-10 bg-slate-50 p-6 rounded-lg lg:bg-transparent lg:p-0">
-            {/* Price Filter */}
-            <div>
-              <h4 className="font-black text-slate-900 mb-6 uppercase text-[10px] tracking-[0.2em]">Filter Harga</h4>
-              <div className="px-2">
-                <input 
-                  type="range" 
-                  className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
-                  min="0"
-                  max="1000000"
-                  step="50000"
-                />
-                <div className="flex justify-between mt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                  <span>Rp 0</span>
-                  <span>Rp 1.000.000+</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Color Filter */}
-            <div>
-              <h4 className="font-black text-slate-900 mb-6 uppercase text-[10px] tracking-[0.2em]">Warna</h4>
-              <div className="flex flex-wrap gap-3">
-                <button className="w-6 h-6 rounded-full bg-black border-2 border-slate-200 hover:border-slate-900 transition-colors hover:scale-110" title="Hitam" />
-                <button className="w-6 h-6 rounded-full bg-white border-2 border-slate-200 hover:border-slate-900 transition-colors hover:scale-110" title="Putih" />
-                <button className="w-6 h-6 rounded-full bg-stone-400 border-2 border-slate-200 hover:border-slate-900 transition-colors hover:scale-110" title="Abu-abu" />
-                <button className="w-6 h-6 rounded-full bg-blue-900 border-2 border-slate-200 hover:border-slate-900 transition-colors hover:scale-110" title="Navy" />
-                <button className="w-6 h-6 rounded-full bg-amber-800 border-2 border-slate-200 hover:border-slate-900 transition-colors hover:scale-110" title="Coklat" />
-                <button className="w-6 h-6 rounded-full bg-rose-500 border-2 border-slate-200 hover:border-slate-900 transition-colors hover:scale-110" title="Pink" />
-              </div>
-            </div>
-
-            {/* Size Filter */}
-            <div>
-              <h4 className="font-black text-slate-900 mb-6 uppercase text-[10px] tracking-[0.2em]">Ukuran</h4>
-              <div className="grid grid-cols-4 gap-2">
-                {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map((size) => (
-                  <button 
-                    key={size}
-                    className="h-10 border border-slate-200 text-[10px] font-bold hover:border-slate-900 hover:bg-slate-900 hover:text-white transition-all duration-200"
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </aside>
-
+      <div className="mt-8 lg:mt-12 px-6">
         {/* Products Grid */}
-        <div className="flex-1">
           <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 lg:mb-10 gap-4">
             <div>
               <h2 className="text-2xl lg:text-3xl font-black uppercase tracking-tight italic">Koleksi Pilihan</h2>
@@ -225,7 +143,7 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-12">
               {filteredProducts.slice(0, 9).map((product, index) => (
                 <Link href={`/product/${product.id}`} key={product.id} className="group product-card flex flex-col cursor-pointer">
-                  <div className="relative aspect-[3/4] overflow-hidden bg-slate-100 rounded-lg">
+                  <div className="relative aspect-[3/4] overflow-hidden bg-slate-100 rounded-xl">
                     <div 
                       className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
                       style={{
@@ -242,30 +160,28 @@ export default function Home() {
                     )}
                     
                     {/* Badges */}
-                    {index < 3 && (
-                      <div className="absolute top-4 left-4">
+                    <div className="absolute top-4 left-4 flex flex-col gap-2">
+                      {index < 3 && (
                         <span className="bg-slate-900 text-white text-[9px] font-black px-3 py-1.5 uppercase tracking-widest rounded">
                           Baru
                         </span>
-                      </div>
-                    )}
-                    {product.discount && (
-                      <div className="absolute top-4 left-4">
+                      )}
+                      {product.discount && (
                         <span className="bg-rose-500 text-white text-[9px] font-black px-3 py-1.5 uppercase tracking-widest rounded">
                           Diskon -{product.discount}%
                         </span>
-                      </div>
-                    )}
+                      )}
+                    </div>
                     
                     {/* Favorite Button */}
                     <button className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/90 rounded-full text-slate-900 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-slate-900 hover:text-white shadow-lg">
                       <Heart className="w-5 h-5" />
                     </button>
                     
-                    {/* Quick Add Button */}
-                    <button className="absolute bottom-0 left-0 right-0 bg-slate-900 text-white text-[10px] font-black py-4 uppercase tracking-[0.2em] translate-y-full group-hover:translate-y-0 transition-transform duration-300 hover:bg-amber-500">
+                    {/* Quick Add Overlay */}
+                    <span className="absolute bottom-0 left-0 right-0 bg-slate-900 text-white text-[10px] font-black py-4 uppercase tracking-[0.2em] translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex items-center justify-center">
                       Lihat Detail
-                    </button>
+                    </span>
                   </div>
                   
                   <div className="pt-6 flex flex-col items-center text-center">
@@ -311,7 +227,7 @@ export default function Home() {
               </button>
             </div>
           )}
-        </div>
+
       </div>
 
       {/* Featured Categories Section */}

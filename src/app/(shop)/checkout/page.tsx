@@ -23,14 +23,13 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Script from 'next/script';
-
-declare global {
-  interface Window {
-    snap: any;
-  }
-}
-
-type ShippingMethod = 'regular' | 'express' | 'sameday';
+import {
+  calculateTotals,
+  buildMidtransItems,
+  createTransaction,
+  ShippingMethod,
+  SHIPPING_OPTIONS,
+} from '@/controllers/orderController';
 
 const shippingOptions = {
   regular: { name: 'Regular', price: 15000, days: '2-4 hari', icon: Truck, description: 'Pilihan hemat untuk pengiriman standar.' },
@@ -58,15 +57,16 @@ export default function CheckoutPage() {
     postalCode: '',
   });
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingCost = shippingOptions[shippingMethod].price;
-  const tax = Math.round(subtotal * 0.11);
-  const total = subtotal + shippingCost + tax;
+  const totals = calculateTotals(cartItems, shippingMethod);
+  const { subtotal, shippingCost, tax, total } = totals;
   const selectedShipping = shippingOptions[shippingMethod];
 
   useEffect(() => {
     document.title = 'Checkout | Toko Rizky';
-  }, []);
+    if (!user && !loading) {
+      router.push('/login?redirect=/checkout');
+    }
+  }, [user, loading, router]);
 
   useEffect(() => {
     if (user) {
@@ -98,70 +98,47 @@ export default function CheckoutPage() {
 
     setIsProcessing(true);
 
-    // Menyiapkan item_details untuk Midtrans agar sinkron dengan gross_amount
-    const midtransItems = cartItems.map((item) => ({
-      id: String(item.productId).substring(0, 50),
-      price: Math.round(item.price),
-      quantity: item.quantity,
-      name: item.name.substring(0, 50),
-    }));
-
-    midtransItems.push({ id: 'shipping', price: shippingCost, quantity: 1, name: 'Ongkos Kirim' });
-    midtransItems.push({ id: 'tax', price: tax, quantity: 1, name: 'Pajak (11%)' });
-
-    const orderDetails = {
-      orderId: `TR-${Date.now()}`,
-      userId: user.uid,
-      total: Math.round(total),
-      items: cartItems.map((item) => ({
-        id: item.productId,
-        price: item.price,
-        quantity: item.quantity,
-        name: item.name,
-      })),
-      midtransItems,
-      shippingMethod,
-      shippingCost,
-      customerDetails: {
+    const orderId = `TR-${Date.now()}`;
+    const midtransItems = buildMidtransItems(cartItems, shippingCost, tax);
+    const customerDetails = {
+      first_name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      shipping_address: {
         first_name: formData.name,
-        email: formData.email,
         phone: formData.phone,
-        shipping_address: {
-          first_name: formData.name,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          postal_code: formData.postalCode || '00000',
-          country_code: 'IDN',
-        },
-        billing_address: {
-          first_name: formData.name,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          postal_code: formData.postalCode || '00000',
-          country_code: 'IDN',
-        },
+        address: formData.address,
+        city: formData.city,
+        postal_code: formData.postalCode || '00000',
+        country_code: 'IDN',
       },
     };
 
     try {
-      const res = await fetch('/api/create-transaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderDetails),
+      const { token } = await createTransaction({
+        orderId,
+        userId: user.uid,
+        items: cartItems,
+        shippingMethod,
+        shippingCost,
+        customerDetails,
+        total: Math.round(total),
+        midtransItems,
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-
-      window.snap.pay(data.token, {
+      window.snap.pay(token, {
         onSuccess: (result: any) =>
-          router.push(`/payment/success?order_id=${data.orderId}&transaction_id=${result.transaction_id}`),
+          router.push(`/payment/success?order_id=${orderId}&transaction_id=${result.transaction_id}`),
         onPending: (result: any) =>
-          router.push(`/payment/pending?order_id=${data.orderId}&transaction_id=${result.transaction_id}`),
-        onError: () => toast.error('Pembayaran gagal.'),
-        onClose: () => toast.info('Popup ditutup.'),
+          router.push(`/payment/pending?order_id=${orderId}&transaction_id=${result.transaction_id}`),
+        onError: () => {
+          setIsProcessing(false);
+          toast.error('Pembayaran gagal.');
+        },
+        onClose: () => {
+          setIsProcessing(false);
+          toast.info('Pembayaran dibatalkan.');
+        },
       });
     } catch (err: any) {
       toast.error(err.message || 'Gagal membuat transaksi.');

@@ -47,7 +47,7 @@ export default function RevenueChart({ orders }: RevenueChartProps) {
         // 2. Aggregate data
         orders.forEach(order => {
             // Only count valid orders
-            if (!['success', 'settlement', 'capture', 'completed'].includes(order.status?.toLowerCase())) {
+            if (!['success', 'settlement', 'capture', 'completed', 'paid'].includes(order.status?.toLowerCase())) {
                 return;
             }
 

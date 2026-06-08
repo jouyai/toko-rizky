@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export default function PendingContent() {
   const params = useSearchParams();
@@ -10,13 +11,13 @@ export default function PendingContent() {
 
   return (
     <main className="mx-auto max-w-md p-6">
-      <h1 className="mb-2 text-xl font-semibold">Pembayaran Tertunda</h1>
-      <p className="text-sm text-gray-600">{message}</p>
-      {orderId && <p className="mt-1 text-xs text-gray-500">Order ID: {orderId}</p>}
-      {status && <p className="mt-1 text-xs text-gray-500">Status: {status}</p>}
-      <a href="/" className="mt-4 inline-block rounded bg-black px-4 py-2 text-white">
+      <h1 className="mb-2 text-xl font-black uppercase tracking-tight text-slate-900">Pembayaran Tertunda</h1>
+      <p className="text-sm text-slate-600">{message}</p>
+      {orderId && <p className="mt-1 text-xs text-slate-500">Order ID: {orderId}</p>}
+      {status && <p className="mt-1 text-xs text-slate-500">Status: {status}</p>}
+      <Link href="/" className="mt-4 inline-flex items-center rounded-xl bg-slate-900 px-6 py-3 text-xs font-bold uppercase tracking-widest text-white hover:bg-amber-500 transition-colors">
         Kembali ke Beranda
-      </a>
+      </Link>
     </main>
   );
 }

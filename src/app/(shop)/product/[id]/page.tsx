@@ -1,30 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot, collection, addDoc, query, where, getDocs, updateDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
 import { useParams, useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import Link from 'next/link';
 import { Star, Heart, ShoppingBag, Ruler, ChevronRight } from 'lucide-react';
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  originalPrice?: number;
-  stock: number;
-  image?: string;
-  images?: string[];
-  category?: string;
-  colors?: string[];
-  sizes?: string[];
-  material?: string;
-  fit?: string;
-}
+import { listenProductById, Product } from '@/controllers/productController';
+import { addToCart } from '@/controllers/cartController';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -51,13 +35,11 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (typeof id !== 'string') return;
 
-    const docRef = doc(db, 'products', id);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setProduct({ id: docSnap.id, ...data } as Product);
-        if (data.colors && data.colors.length > 0) {
-          setSelectedColor(data.colors[0]);
+    const unsubscribe = listenProductById(id, (product) => {
+      if (product) {
+        setProduct(product);
+        if (product.colors && product.colors.length > 0) {
+          setSelectedColor(product.colors[0]);
         }
       } else {
         setProduct(null);
@@ -78,31 +60,14 @@ export default function ProductDetailPage() {
     if (!product) return;
 
     try {
-      const cartRef = collection(db, 'users', user.uid, 'cart');
-      const q = query(cartRef, where('productId', '==', product.id));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const existingDoc = querySnapshot.docs[0];
-        const newQuantity = existingDoc.data().quantity + quantity;
-        await updateDoc(existingDoc.ref, {
-          quantity: newQuantity,
-          size: selectedSize,
-          color: selectedColor
-        });
-        toast.success(`Jumlah ${product.name} di keranjang diperbarui!`);
-      } else {
-        await addDoc(cartRef, {
-          productId: product.id,
-          name: product.name,
-          price: product.price,
-          image: product.image || '',
-          quantity: quantity,
-          size: selectedSize,
-          color: selectedColor,
-        });
-        toast.success(`${product.name} telah ditambahkan ke keranjang!`);
-      }
+      await addToCart(
+        user.uid,
+        { id: product.id, name: product.name, price: product.price, image: product.image },
+        quantity,
+        selectedSize,
+        selectedColor
+      );
+      toast.success(`${product.name} telah ditambahkan ke keranjang!`);
     } catch (error) {
       console.error("Error adding to cart: ", error);
       toast.error('Gagal menambahkan produk ke keranjang.');
@@ -158,10 +123,8 @@ export default function ProductDetailPage() {
         <div className="text-center">
           <h2 className="text-3xl font-black uppercase tracking-tight mb-4">Produk Tidak Ditemukan</h2>
           <p className="text-slate-500 mb-8">Maaf, produk yang Anda cari tidak tersedia.</p>
-          <Link href="/product">
-            <button className="bg-slate-900 text-white font-bold py-4 px-8 uppercase tracking-widest text-xs hover:bg-amber-500 transition-colors">
+          <Link href="/product" className="bg-slate-900 text-white font-bold py-4 px-8 uppercase tracking-widest text-xs hover:bg-amber-500 transition-colors inline-flex items-center">
               Kembali ke Produk
-            </button>
           </Link>
         </div>
       </main>

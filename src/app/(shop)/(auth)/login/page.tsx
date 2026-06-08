@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/firebase';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { loginUser } from '@/controllers/authController';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,8 +22,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/');
+      await loginUser(email, password);
+      router.push(redirectTo);
     } catch (err: any) {
       if (err.code === 'auth/user-not-found') {
         setError('Email tidak terdaftar');
@@ -158,7 +159,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center rounded-lg bg-slate-900 hover:bg-amber-500 px-4 py-4 text-xs font-bold uppercase tracking-widest text-white shadow-sm transition-all disabled:bg-slate-300 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center rounded-xl bg-slate-900 hover:bg-amber-500 px-4 py-4 text-xs font-bold uppercase tracking-widest text-white shadow-sm transition-all disabled:bg-slate-300 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -187,5 +188,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-500" /></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -2,20 +2,20 @@
 
 import {
     DollarSign,
-    TrendingUp,
     ShoppingBag,
     Users,
     ArrowRight,
-    Loader2,
-    Calendar,
     User
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { db } from '@/firebase';
-import { collection, query, orderBy, limit, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot } from 'firebase/firestore';
+import { listenOrders, listenRecentOrders } from '@/controllers/orderController';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import RevenueChart from '@/components/dashboard/RevenueChart';
+
+const PAID_STATUSES = ['success', 'settlement', 'capture', 'completed', 'paid'];
 
 interface Order {
     id: string;
@@ -30,6 +30,41 @@ interface Order {
     items: any[];
 }
 
+const currencyFormat = new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0
+});
+
+function formatCurrency(amount: number) {
+    return currencyFormat.format(amount);
+}
+
+function formatDate(timestamp: any) {
+    if (!timestamp) return '-';
+    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function getStatusColor(status: string) {
+    switch (status?.toLowerCase()) {
+        case 'success':
+        case 'settlement':
+        case 'capture':
+        case 'completed':
+            return 'bg-emerald-100 text-emerald-700';
+        case 'pending':
+            return 'bg-amber-100 text-amber-700';
+        case 'deny':
+        case 'cancel':
+        case 'expire':
+        case 'failure':
+            return 'bg-red-100 text-red-700';
+        default:
+            return 'bg-slate-100 text-slate-700';
+    }
+}
+
 export default function DashboardPage() {
     const [stats, setStats] = useState({
         totalRevenue: 0,
@@ -37,53 +72,35 @@ export default function DashboardPage() {
         activeUsers: 0
     });
     const [recentOrders, setRecentOrders] = useState<Order[]>([]);
-    const [allOrders, setAllOrders] = useState<Order[]>([]); // New state for chart data
+    const [allOrders, setAllOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         setLoading(true);
 
-        // 1. Listen for Orders (Total Revenue, Total Orders Count, and Chart Data)
-        const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc')); // Ordered for logic if needed
-        const unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
+        const unsubscribeOrders = listenOrders((ordersData) => {
             let revenue = 0;
-            const ordersData: Order[] = [];
+            const ordersList = ordersData as Order[];
 
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                ordersData.push({ ...data, id: doc.id } as Order);
-
-                // Calculate Revenue (only for successful/paid orders)
-                if (['success', 'settlement', 'capture', 'completed'].includes(data.status?.toLowerCase())) {
-                    revenue += data.total || 0;
+            ordersList.forEach(order => {
+                if (PAID_STATUSES.includes(order.status?.toLowerCase())) {
+                    revenue += order.total || 0;
                 }
             });
 
             setStats(prev => ({
                 ...prev,
                 totalRevenue: revenue,
-                totalOrders: snapshot.size
+                totalOrders: ordersList.length
             }));
-            setAllOrders(ordersData); // Update chart data
+            setAllOrders(ordersList);
         });
 
-        // 2. Listen for Recent Orders (Limit 5)
-        const recentOrdersQuery = query(
-            collection(db, 'orders'),
-            orderBy('createdAt', 'desc'),
-            limit(5)
-        );
-
-        const unsubscribeRecent = onSnapshot(recentOrdersQuery, (snapshot) => {
-            const recent = snapshot.docs.map(doc => ({
-                ...doc.data(),
-                id: doc.id
-            })) as Order[];
-            setRecentOrders(recent);
-            setLoading(false); // Data is ready
+        const unsubscribeRecent = listenRecentOrders(5, (recent) => {
+            setRecentOrders(recent as Order[]);
+            setLoading(false);
         });
 
-        // 3. Listen for Users Count
         const usersQuery = query(collection(db, 'users'));
         const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
             setStats(prev => ({
@@ -99,57 +116,15 @@ export default function DashboardPage() {
         };
     }, []);
 
-    // Helper for currency format
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0
-        }).format(amount);
-    };
-
-    // Helper for date format
-    const formatDate = (timestamp: any) => {
-        if (!timestamp) return '-';
-        // Handle Firebase Timestamp
-        const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
-        return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-    };
-
-    // Helper for status badge color
-    const getStatusColor = (status: string) => {
-        switch (status?.toLowerCase()) {
-            case 'success':
-            case 'settlement':
-            case 'capture':
-            case 'completed':
-                return 'bg-emerald-100 text-emerald-700';
-            case 'pending':
-                return 'bg-amber-100 text-amber-700';
-            case 'deny':
-            case 'cancel':
-            case 'expire':
-            case 'failure':
-                return 'bg-red-100 text-red-700';
-            default:
-                return 'bg-slate-100 text-slate-700';
-        }
-    };
-
     return (
-        <div className="space-y-8">
-            {/* KPI Stats */}
+        <div className="space-y-6">
+            {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
-                            <DollarSign className="w-6 h-6" />
-                        </div>
-                        <span className="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                            <TrendingUp className="w-3 h-3" /> Live
-                        </span>
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600 w-fit mb-4">
+                        <DollarSign className="w-6 h-6" />
                     </div>
-                    <p className="text-slate-500 text-sm font-medium">Total Sales</p>
+                    <p className="text-slate-500 text-sm font-medium">Total Pendapatan</p>
                     {loading ? (
                         <Skeleton className="h-8 w-32 mt-1" />
                     ) : (
@@ -157,19 +132,13 @@ export default function DashboardPage() {
                             {formatCurrency(stats.totalRevenue)}
                         </h3>
                     )}
-                    <p className="text-slate-400 text-xs mt-2 font-medium">Accumulated revenue</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-                            <ShoppingBag className="w-6 h-6" />
-                        </div>
-                        <span className="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                            <TrendingUp className="w-3 h-3" /> Live
-                        </span>
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="p-3 bg-blue-50 rounded-xl text-blue-600 w-fit mb-4">
+                        <ShoppingBag className="w-6 h-6" />
                     </div>
-                    <p className="text-slate-500 text-sm font-medium">Total Orders</p>
+                    <p className="text-slate-500 text-sm font-medium">Total Pesanan</p>
                     {loading ? (
                         <Skeleton className="h-8 w-16 mt-1" />
                     ) : (
@@ -177,19 +146,13 @@ export default function DashboardPage() {
                             {stats.totalOrders}
                         </h3>
                     )}
-                    <p className="text-slate-400 text-xs mt-2 font-medium">All time orders</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-purple-50 rounded-xl text-purple-600">
-                            <Users className="w-6 h-6" />
-                        </div>
-                        <span className="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                            <TrendingUp className="w-3 h-3" /> Live
-                        </span>
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="p-3 bg-purple-50 rounded-xl text-purple-600 w-fit mb-4">
+                        <Users className="w-6 h-6" />
                     </div>
-                    <p className="text-slate-500 text-sm font-medium">Registered Users</p>
+                    <p className="text-slate-500 text-sm font-medium">Pengguna Terdaftar</p>
                     {loading ? (
                         <Skeleton className="h-8 w-16 mt-1" />
                     ) : (
@@ -197,22 +160,18 @@ export default function DashboardPage() {
                             {stats.activeUsers}
                         </h3>
                     )}
-                    <p className="text-slate-400 text-xs mt-2 font-medium">Total registered accounts</p>
                 </div>
             </div>
 
-            {/* Main Chart Section - Now Dynamic */}
+            {/* Revenue Chart */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-slate-900">Revenue Overview</h3>
-                    <div className="flex gap-2">
-                        <span className="text-xs font-bold bg-amber-50 text-amber-600 px-3 py-1 rounded-full border border-amber-100">
-                            Last 6 Months
-                        </span>
-                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">Grafik Pendapatan</h3>
+                    <span className="text-xs font-bold bg-amber-50 text-amber-600 px-3 py-1 rounded-full border border-amber-100">
+                        6 Bulan Terakhir
+                    </span>
                 </div>
                 <div className="p-6">
-                    {/* Pass real orders data to chart */}
                     <RevenueChart orders={allOrders} />
                 </div>
             </div>
@@ -220,11 +179,9 @@ export default function DashboardPage() {
             {/* Recent Orders Table */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-slate-900">Recent Orders</h3>
-                    <Link href="/dashboard/orders">
-                        <button className="text-amber-600 text-sm font-bold hover:text-amber-700 flex items-center gap-1 group transition-colors">
-                            View All <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </button>
+                    <h3 className="text-lg font-bold text-slate-900">Pesanan Terbaru</h3>
+                    <Link href="/dashboard/orders" className="text-amber-600 text-sm font-bold hover:text-amber-700 flex items-center gap-1 group transition-colors">
+                        Lihat Semua <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </Link>
                 </div>
                 <div className="overflow-x-auto">
@@ -232,16 +189,15 @@ export default function DashboardPage() {
                         <thead>
                             <tr className="bg-slate-50/50 border-b border-slate-100">
                                 <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Order ID</th>
-                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Customer</th>
-                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Date</th>
-                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Amount</th>
+                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Pelanggan</th>
+                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Tanggal</th>
+                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Total</th>
                                 <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Status</th>
-                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Action</th>
+                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
-                                // Loading Skeleton Rows
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i}>
                                         <td className="px-6 py-4"><Skeleton className="h-4 w-20" /></td>
@@ -255,7 +211,7 @@ export default function DashboardPage() {
                             ) : recentOrders.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm font-medium">
-                                        No recent orders found.
+                                        Belum ada pesanan.
                                     </td>
                                 </tr>
                             ) : (
@@ -268,7 +224,7 @@ export default function DashboardPage() {
                                                     {order.customerDetails?.first_name?.slice(0, 2) || <User className="w-4 h-4" />}
                                                 </div>
                                                 <span className="text-sm font-bold text-slate-700">
-                                                    {order.customerDetails?.first_name || 'Guest User'}
+                                                    {order.customerDetails?.first_name || 'Guest'}
                                                 </span>
                                             </div>
                                         </td>
@@ -284,11 +240,9 @@ export default function DashboardPage() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <Link href="/dashboard/orders">
-                                                <button className="text-slate-400 hover:text-amber-600 text-sm font-bold transition-colors">
-                                                    Details
-                                                </button>
-                                            </Link>
+                                            <Link href="/dashboard/orders" className="text-slate-400 hover:text-amber-600 text-sm font-bold transition-colors">
+                                                Detail
+                                        </Link>
                                         </td>
                                     </tr>
                                 ))

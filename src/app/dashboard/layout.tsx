@@ -11,8 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from '@/lib/AuthContext';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/firebase';
+import { logoutUser } from '@/controllers/authController';
 import { useState } from 'react';
 import {
   LayoutDashboard,
@@ -20,15 +19,27 @@ import {
   ShoppingCart,
   Settings,
   LogOut,
-  Search,
   Bell,
-  Moon,
   ShoppingBag,
   Menu,
   Home,
   User
 } from 'lucide-react';
 import AdminGuard from '@/components/auth/AdminGuard';
+
+const navigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Products', href: '/dashboard/products', icon: Package },
+  { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
+];
+
+const pageTitle: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/dashboard/products': 'Products',
+  '/dashboard/orders': 'Orders',
+  '/dashboard/profile': 'Profile',
+  '/dashboard/settings': 'Settings',
+};
 
 export default function DashboardLayout({
   children,
@@ -38,17 +49,10 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Products', href: '/dashboard/products', icon: Package },
-    { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
-  ];
-
   const { user, userProfile } = useAuth();
 
   const handleLogout = async () => {
-    await signOut(auth);
-    // Redirect handled by AuthGuard or just push to home
+    await logoutUser();
     window.location.href = '/';
   };
 
@@ -121,31 +125,19 @@ export default function DashboardLayout({
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <h2 className="text-xl font-bold text-slate-900">Overview</h2>
+              <h2 className="text-xl font-bold text-slate-900">{pageTitle[pathname] || 'Dashboard'}</h2>
             </div>
 
             <div className="flex items-center gap-4 sm:gap-6">
-              <div className="hidden md:flex relative group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-amber-500 transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Search data..."
-                  className="pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-amber-500/20 focus:bg-white w-64 text-slate-900 transition-all placeholder:text-slate-400"
-                />
-              </div>
-
               <div className="flex items-center gap-2">
                 <button className="p-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors relative">
                   <Bell className="w-5 h-5" />
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 </button>
-                <button className="p-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors">
-                  <Moon className="w-5 h-5" />
-                </button>
               </div>
 
               {/* User Profile Dropdown */}
-              <div className="pl-6 border-l border-slate-200">
+              <div className="pl-4 border-l border-slate-200">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center gap-3 outline-none">
                     <div className="text-right hidden sm:block">

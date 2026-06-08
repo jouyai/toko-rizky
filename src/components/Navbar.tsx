@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
 import { useCart } from '@/lib/CartContext';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/firebase';
+import { logoutUser } from '@/controllers/authController';
 import { Heart, Search, User, LogOut, Settings, FileText, Menu, X, ShoppingCart, LayoutDashboard } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -22,11 +21,21 @@ export default function Navbar() {
     const { itemCount = 0 } = useCart();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
 
     const handleLogout = async () => {
-        await signOut(auth);
+        await logoutUser();
         router.push('/');
+    };
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+            router.push(`/product?search=${encodeURIComponent(searchQuery.trim())}`);
+            setSearchQuery('');
+            setSearchOpen(false);
+        }
     };
 
     return (
@@ -63,14 +72,16 @@ export default function Navbar() {
                 {/* Right Side Actions */}
                 <div className="flex items-center gap-2 md:gap-4 shrink-0">
                     {/* Search Bar - Desktop */}
-                    <div className="hidden md:flex items-center border-b border-slate-200 py-1 group focus-within:border-slate-900 transition-colors">
+                    <form onSubmit={handleSearch} className="hidden md:flex items-center border-b border-slate-200 py-1 group focus-within:border-slate-900 transition-colors">
                         <Search className="w-5 h-5 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
                         <input
                             type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Cari produk..."
                             className="bg-transparent border-none focus:ring-0 text-sm w-32 lg:w-40 px-2 placeholder:text-slate-400 font-medium"
                         />
-                    </div>
+                    </form>
 
                     {/* Search Button - Mobile */}
                     <button
@@ -82,7 +93,7 @@ export default function Navbar() {
 
                     {/* Icons */}
                     <div className="flex items-center gap-1 md:gap-2">
-                        <Link href="/wishlist" className="p-2 hover:text-amber-500 transition-colors hidden sm:flex">
+                        <Link href="/product" className="p-2 hover:text-amber-500 transition-colors hidden sm:flex">
                             <Heart className="w-5 h-5" />
                         </Link>
 
@@ -136,7 +147,7 @@ export default function Navbar() {
                                         </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem asChild>
-                                        <Link href="/orders" className="cursor-pointer flex items-center gap-2 text-slate-600 hover:text-slate-900 focus:bg-slate-50 rounded-lg px-2 py-2">
+                                        <Link href="/profile" className="cursor-pointer flex items-center gap-2 text-slate-600 hover:text-slate-900 focus:bg-slate-50 rounded-lg px-2 py-2">
                                             <FileText className="w-4 h-4" />
                                             <span>Pesanan Saya</span>
                                         </Link>
@@ -152,15 +163,11 @@ export default function Navbar() {
                             </DropdownMenu>
                         ) : (
                             <div className="hidden sm:flex items-center gap-2">
-                                <Link href="/login">
-                                    <button className="text-xs font-bold uppercase tracking-widest hover:text-amber-500 transition-colors px-4 py-2">
-                                        Login
-                                    </button>
+                                <Link href="/login" className="text-xs font-bold uppercase tracking-widest hover:text-amber-500 transition-colors px-4 py-2 inline-flex items-center">
+                                    Login
                                 </Link>
-                                <Link href="/register">
-                                    <button className="bg-slate-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-amber-500 transition-colors px-4 py-2">
-                                        Register
-                                    </button>
+                                <Link href="/register" className="bg-slate-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-amber-500 transition-colors px-4 py-2 inline-flex items-center">
+                                    Register
                                 </Link>
                             </div>
                         )}
@@ -179,15 +186,17 @@ export default function Navbar() {
             {/* Mobile Search Bar */}
             {searchOpen && (
                 <div className="md:hidden border-t border-slate-100 px-4 py-3 bg-white">
-                    <div className="flex items-center border border-slate-200 rounded px-3 py-2">
+                    <form onSubmit={handleSearch} className="flex items-center border border-slate-200 rounded px-3 py-2">
                         <Search className="w-5 h-5 text-slate-400" />
                         <input
                             type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Cari produk..."
                             className="bg-transparent border-none focus:ring-0 text-sm w-full px-2 placeholder:text-slate-400 font-medium"
                             autoFocus
                         />
-                    </div>
+                    </form>
                 </div>
             )}
 
@@ -230,15 +239,11 @@ export default function Navbar() {
 
                         {!user && (
                             <div className="flex gap-2 pt-4">
-                                <Link href="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                                    <button className="w-full border border-slate-200 text-xs font-bold uppercase tracking-widest hover:border-slate-900 transition-colors px-4 py-3">
-                                        Login
-                                    </button>
+                                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex-1 w-full border border-slate-200 text-xs font-bold uppercase tracking-widest hover:border-slate-900 transition-colors px-4 py-3 inline-flex items-center justify-center">
+                                    Login
                                 </Link>
-                                <Link href="/register" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                                    <button className="w-full bg-slate-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-amber-500 transition-colors px-4 py-3">
-                                        Register
-                                    </button>
+                                <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="flex-1 w-full bg-slate-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-amber-500 transition-colors px-4 py-3 inline-flex items-center justify-center">
+                                    Register
                                 </Link>
                             </div>
                         )}

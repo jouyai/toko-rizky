@@ -3,17 +3,8 @@
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { auth, db } from '@/firebase';
-import { signOut } from 'firebase/auth';
-import {
-  doc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs
-} from 'firebase/firestore';
-import { updateProfile } from 'firebase/auth';
+import { logoutUser, updateUserProfile } from '@/controllers/authController';
+import { fetchUserOrders } from '@/controllers/orderController';
 import Link from 'next/link';
 
 import {
@@ -36,7 +27,9 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  Eye
+  Eye,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 type OrderStatus = 'success' | 'paid' | 'pending' | 'shipped' | 'failed';
@@ -67,6 +60,7 @@ export default function ProfilePage() {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const ordersPerPage = 5;
 
   // Redirect if not logged in
@@ -85,28 +79,12 @@ export default function ProfilePage() {
     }
   }, [userProfile, user]);
 
-  // Fetch orders from Firestore
+  // Fetch orders from controller
   useEffect(() => {
     const fetchOrders = async () => {
       if (user) {
         try {
-          const q = query(
-            collection(db, 'orders'),
-            where('userId', '==', user.uid)
-          );
-
-          const querySnapshot = await getDocs(q);
-          const orderData = querySnapshot.docs
-            .map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }))
-            .sort((a: any, b: any) => {
-              const aTime = a.createdAt?.seconds || 0;
-              const bTime = b.createdAt?.seconds || 0;
-              return bTime - aTime;
-            });
-
+          const orderData = await fetchUserOrders(user.uid);
           setOrders(orderData);
         } catch (error) {
           console.error("Error fetching orders:", error);
@@ -128,14 +106,7 @@ export default function ProfilePage() {
     setError('');
 
     try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        name: newName,
-      });
-
-      await updateProfile(user, {
-        displayName: newName,
-      });
+      await updateUserProfile(user.uid, { name: newName });
 
       setOpen(false);
     } catch (err: any) {
@@ -148,7 +119,7 @@ export default function ProfilePage() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await logoutUser();
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
@@ -289,10 +260,8 @@ export default function ProfilePage() {
                 <div className="text-center py-20 bg-white rounded-xl border border-slate-100">
                   <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                   <p className="text-slate-500 font-medium">Belum ada pesanan</p>
-                  <Link href="/product">
-                    <button className="mt-4 px-6 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-amber-500 transition-colors">
-                      Mulai Belanja
-                    </button>
+                  <Link href="/product" className="mt-4 px-6 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-amber-500 transition-colors inline-flex items-center">
+                    Mulai Belanja
                   </Link>
                 </div>
               ) : (
@@ -329,19 +298,46 @@ export default function ProfilePage() {
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center justify-between sm:justify-end gap-6 sm:gap-10">
+                          <div className="flex items-center justify-between sm:justify-end gap-4">
                             <div className="text-right">
                               <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-0.5">Total</p>
                               <p className="text-base font-bold text-amber-600">
                                 Rp {order.total?.toLocaleString('id-ID')}
                               </p>
                             </div>
-                            <button className="flex items-center gap-1.5 px-4 py-2 border border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white rounded-lg text-xs font-bold uppercase tracking-widest transition-all">
-                              <Eye className="w-4 h-4" />
-                              Detail
+                            <button
+                              onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                              className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white rounded-lg text-xs font-bold uppercase tracking-widest transition-all"
+                            >
+                              {expandedOrder === order.id ? <ChevronUp className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              {expandedOrder === order.id ? 'Tutup' : 'Detail'}
                             </button>
                           </div>
                         </div>
+
+                        {expandedOrder === order.id && order.items && (
+                          <div className="border-t border-slate-100 bg-slate-50/50 p-5 space-y-3">
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Item Pesanan</p>
+                            {order.items.map((item: any, i: number) => (
+                              <div key={i} className="flex items-center gap-3 bg-white p-3 rounded-lg border border-slate-100">
+                                {item.image && (
+                                  <div className="w-12 h-14 rounded bg-slate-100 bg-cover bg-center flex-shrink-0" style={{ backgroundImage: `url('${item.image}')` }} />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-semibold text-slate-900 truncate">{item.name}</p>
+                                  <p className="text-xs text-slate-500">{item.quantity} x Rp {item.price?.toLocaleString('id-ID')}</p>
+                                </div>
+                                <p className="text-sm font-bold text-slate-900">Rp {(item.price * item.quantity).toLocaleString('id-ID')}</p>
+                              </div>
+                            ))}
+                            <div className="flex justify-between text-sm pt-2 border-t border-slate-200">
+                              <span className="text-slate-500 font-medium">Alamat Pengiriman</span>
+                              <span className="text-slate-700 font-medium text-right max-w-[250px] truncate">
+                                {order.customerDetails?.shipping_address?.address || '-'}, {order.customerDetails?.shipping_address?.city || ''}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

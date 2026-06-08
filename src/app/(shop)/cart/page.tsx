@@ -2,12 +2,9 @@
 
 import { useCart } from '@/lib/CartContext';
 import { useAuth } from '@/lib/AuthContext';
-import { db } from '@/firebase';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, limit, query } from 'firebase/firestore';
 import {
   ShoppingCart,
   Minus,
@@ -21,19 +18,12 @@ import {
   Truck,
   MessageCircle
 } from 'lucide-react';
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image?: string;
-  category?: string;
-}
+import { updateCartItemQuantity, removeCartItem } from '@/controllers/cartController';
+import { fetchProducts, Product } from '@/controllers/productController';
 
 export default function CartPage() {
   const { user } = useAuth();
   const { cartItems, loading } = useCart();
-  const [promoCode, setPromoCode] = useState('');
   const [recommendations, setRecommendations] = useState<Product[]>([]);
 
   useEffect(() => {
@@ -44,10 +34,8 @@ export default function CartPage() {
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
-        const q = query(collection(db, 'products'), limit(4));
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
-        setRecommendations(data);
+        const data = await fetchProducts();
+        setRecommendations(data.slice(0, 4));
       } catch (error) {
         console.error('Error fetching recommendations:', error);
       }
@@ -57,9 +45,8 @@ export default function CartPage() {
 
   const updateQuantity = async (id: string, newQuantity: number) => {
     if (newQuantity < 1 || !user) return;
-    const itemRef = doc(db, 'users', user.uid, 'cart', id);
     try {
-      await updateDoc(itemRef, { quantity: newQuantity });
+      await updateCartItemQuantity(user.uid, id, newQuantity);
     } catch (error) {
       toast.error('Gagal memperbarui jumlah item.');
     }
@@ -67,9 +54,8 @@ export default function CartPage() {
 
   const removeItem = async (id: string) => {
     if (!user) return;
-    const itemRef = doc(db, 'users', user.uid, 'cart', id);
     try {
-      await deleteDoc(itemRef);
+      await removeCartItem(user.uid, id);
       toast.success('Item dihapus dari keranjang.');
     } catch (error) {
       toast.error('Gagal menghapus item.');
@@ -77,7 +63,7 @@ export default function CartPage() {
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = subtotal > 500000 ? 0 : 15000; // Free shipping over 500k
+  const shipping = subtotal > 500000 ? 0 : 15000; // Estimasi minimal ongkir
   const tax = subtotal * 0.11; // 11% PPN
   const total = subtotal + shipping + tax;
 
@@ -259,24 +245,6 @@ export default function CartPage() {
                 </div>
               )}
 
-              {/* Promo Code */}
-              <div className="mb-6">
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-500 block mb-2">
-                  Kode Promo
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    placeholder="Masukkan kode"
-                    className="flex-grow text-sm border-2 border-slate-200 rounded-xl py-3 px-5 focus:ring-0 focus:border-amber-500 focus:shadow-[0_0_0_4px_rgba(245,158,11,0.1)] transition-all duration-200 hover:border-slate-300"
-                  />
-                  <button className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-colors">
-                    Terapkan
-                  </button>
-                </div>
-              </div>
 
               {/* Checkout Button */}
               <Link

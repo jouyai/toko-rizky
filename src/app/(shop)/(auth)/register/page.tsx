@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth, db } from '@/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
+import { registerUser } from '@/controllers/authController';
 import { Loader2, Eye, EyeOff, User, Mail, Lock, ArrowLeft, ArrowRight } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -52,20 +50,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCredential.user;
-
-      await updateProfile(newUser, {
-        displayName: name,
-      });
-
-      await setDoc(doc(db, 'users', newUser.uid), {
-        name: name,
-        email: email,
-        role: 'buyer',
-        createdAt: new Date(),
-      });
-
+      await registerUser(email, password, name);
       router.push('/');
     } catch (err: any) {
       if (err.code === 'auth/email-already-in-use') {
@@ -276,7 +261,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-slate-900 hover:bg-amber-500 disabled:bg-slate-300 text-white font-bold py-4 rounded-lg transition-all flex items-center justify-center gap-2 group uppercase tracking-widest text-xs"
+                className="w-full bg-slate-900 hover:bg-amber-500 disabled:bg-slate-300 text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 group uppercase tracking-widest text-xs"
               >
                 {loading ? (
                   <>
