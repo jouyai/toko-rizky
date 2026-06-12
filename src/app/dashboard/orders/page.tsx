@@ -2,17 +2,35 @@
 
 import { useEffect, useState } from 'react';
 import { listenOrders } from '@/controllers/orderController';
-import { Loader2, Package, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Package, Search, ChevronLeft, ChevronRight, X, User, MapPin, Phone, Mail, Truck, Receipt } from 'lucide-react';
+
+interface OrderItem {
+    id?: string;
+    name: string;
+    price: number;
+    quantity: number;
+    image?: string;
+}
 
 interface Order {
+    id?: string;
     orderId: string;
     total: number;
     status: string;
     customerDetails: any;
+    items?: OrderItem[];
+    shippingMethod?: string;
+    shippingCost?: number;
     createdAt: any;
 }
 
 const ORDERS_PER_PAGE = 10;
+
+const SHIPPING_LABELS: Record<string, string> = {
+    regular: 'Regular',
+    express: 'Express',
+    sameday: 'Same Day',
+};
 
 function formatDate(timestamp: any) {
     if (!timestamp) return '-';
@@ -21,6 +39,20 @@ function formatDate(timestamp: any) {
         day: 'numeric', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
     }).format(date);
+}
+
+function getStatusLabel(status: string) {
+    switch (status?.toLowerCase()) {
+        case 'paid': return 'Lunas';
+        case 'pending': return 'Menunggu';
+        case 'shipped': return 'Dikirim';
+        case 'completed': return 'Selesai';
+        case 'cancelled': return 'Dibatalkan';
+        case 'denied': return 'Ditolak';
+        case 'expired': return 'Kadaluarsa';
+        case 'failed': return 'Gagal';
+        default: return status || '-';
+    }
 }
 
 function getStatusStyle(status: string) {
@@ -51,6 +83,7 @@ export default function AdminOrdersPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
     useEffect(() => {
         const unsubscribe = listenOrders((ordersData) => {
@@ -121,7 +154,11 @@ export default function AdminOrdersPage() {
                                 </tr>
                             ) : (
                                 paginatedOrders.map((order) => (
-                                    <tr key={order.orderId} className="hover:bg-slate-50 transition-colors">
+                                    <tr
+                                        key={order.orderId}
+                                        onClick={() => setSelectedOrder(order)}
+                                        className="hover:bg-slate-50 transition-colors cursor-pointer"
+                                    >
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
                                                 <Package className="w-4 h-4 text-slate-400 shrink-0" />
@@ -146,7 +183,7 @@ export default function AdminOrdersPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold uppercase ${getStatusStyle(order.status)}`}>
-                                                {order.status === 'paid' ? 'Lunas' : order.status === 'pending' ? 'Menunggu' : order.status}
+                                                {getStatusLabel(order.status)}
                                             </span>
                                         </td>
                                     </tr>
@@ -197,6 +234,156 @@ export default function AdminOrdersPage() {
                     </div>
                 </div>
             )}
+
+            {selectedOrder && (
+                <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+            )}
+        </div>
+    );
+}
+
+function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => void }) {
+    const items = order.items || [];
+    const itemsSubtotal = items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
+    const shipping = order.customerDetails?.shipping_address;
+    // Pajak tidak disimpan terpisah; turunkan dari selisih total agar rincian konsisten.
+    const tax = Math.max(0, (order.total || 0) - itemsSubtotal - (order.shippingCost || 0));
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+            onClick={onClose}
+        >
+            <div
+                className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex items-start justify-between px-6 py-5 border-b border-slate-200">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <Package className="w-5 h-5 text-amber-500" />
+                            <h2 className="text-lg font-bold text-slate-900">{order.orderId}</h2>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-1">{formatDate(order.createdAt)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold uppercase ${getStatusStyle(order.status)}`}>
+                            {getStatusLabel(order.status)}
+                        </span>
+                        <button
+                            onClick={onClose}
+                            className="text-slate-400 hover:text-slate-700 transition-colors"
+                            aria-label="Tutup"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Body */}
+                <div className="overflow-y-auto px-6 py-5 space-y-6">
+                    {/* Customer */}
+                    <section>
+                        <h3 className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-widest mb-3">
+                            <User className="w-4 h-4" /> Pelanggan
+                        </h3>
+                        <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                            <div className="flex items-center gap-2 text-slate-700">
+                                <User className="w-4 h-4 text-slate-400 shrink-0" />
+                                {order.customerDetails?.first_name || 'Tanpa Nama'}
+                            </div>
+                            <div className="flex items-center gap-2 text-slate-700">
+                                <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                                {order.customerDetails?.email || '-'}
+                            </div>
+                            <div className="flex items-center gap-2 text-slate-700">
+                                <Phone className="w-4 h-4 text-slate-400 shrink-0" />
+                                {order.customerDetails?.phone || '-'}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Shipping address */}
+                    {shipping && (
+                        <section>
+                            <h3 className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-widest mb-3">
+                                <MapPin className="w-4 h-4" /> Alamat Pengiriman
+                            </h3>
+                            <div className="text-sm text-slate-700 leading-relaxed bg-slate-50 rounded-lg p-4">
+                                <p className="font-medium text-slate-900">{shipping.first_name}</p>
+                                <p>{shipping.phone}</p>
+                                <p>{shipping.address}</p>
+                                <p>{[shipping.city, shipping.postal_code].filter(Boolean).join(', ')}</p>
+                                {order.shippingMethod && (
+                                    <p className="flex items-center gap-1.5 mt-2 text-slate-500">
+                                        <Truck className="w-4 h-4" />
+                                        {SHIPPING_LABELS[order.shippingMethod] || order.shippingMethod}
+                                    </p>
+                                )}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Items */}
+                    <section>
+                        <h3 className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-widest mb-3">
+                            <Receipt className="w-4 h-4" /> Item Pesanan
+                        </h3>
+                        {items.length === 0 ? (
+                            <p className="text-sm text-slate-500">Tidak ada detail item.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {items.map((item, idx) => (
+                                    <div key={item.id || idx} className="flex items-center gap-3">
+                                        {item.image ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={item.image} alt={item.name} className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0" />
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                                                <Package className="w-5 h-5 text-slate-400" />
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-slate-900 truncate">{item.name}</p>
+                                            <p className="text-xs text-slate-500">
+                                                {item.quantity} × Rp {item.price?.toLocaleString('id-ID')}
+                                            </p>
+                                        </div>
+                                        <p className="text-sm font-semibold text-slate-900 whitespace-nowrap">
+                                            Rp {((item.price || 0) * (item.quantity || 0)).toLocaleString('id-ID')}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+
+                    {/* Totals */}
+                    <section className="border-t border-slate-200 pt-4 space-y-2 text-sm">
+                        <div className="flex justify-between text-slate-600">
+                            <span>Subtotal</span>
+                            <span>Rp {itemsSubtotal.toLocaleString('id-ID')}</span>
+                        </div>
+                        {typeof order.shippingCost === 'number' && (
+                            <div className="flex justify-between text-slate-600">
+                                <span>Ongkos Kirim</span>
+                                <span>Rp {order.shippingCost.toLocaleString('id-ID')}</span>
+                            </div>
+                        )}
+                        {tax > 0 && (
+                            <div className="flex justify-between text-slate-600">
+                                <span>Pajak (11%)</span>
+                                <span>Rp {tax.toLocaleString('id-ID')}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-100">
+                            <span>Total</span>
+                            <span>Rp {order.total?.toLocaleString('id-ID')}</span>
+                        </div>
+                    </section>
+                </div>
+            </div>
         </div>
     );
 }

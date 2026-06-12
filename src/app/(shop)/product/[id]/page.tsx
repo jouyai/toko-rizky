@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import Link from 'next/link';
-import { Star, Heart, ShoppingBag, Ruler, ChevronRight } from 'lucide-react';
+import { ShoppingBag, Ruler, ChevronRight } from 'lucide-react';
 import { listenProductById, Product } from '@/controllers/productController';
 import { addToCart } from '@/controllers/cartController';
 
@@ -20,7 +20,6 @@ export default function ProductDetailPage() {
   const [selectedSize, setSelectedSize] = useState<string>('M');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('description');
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
   // Default sizes and colors if not specified
@@ -71,15 +70,6 @@ export default function ProductDetailPage() {
     } catch (error) {
       console.error("Error adding to cart: ", error);
       toast.error('Gagal menambahkan produk ke keranjang.');
-    }
-  };
-
-  const handleWishlist = () => {
-    setIsWishlisted(!isWishlisted);
-    if (!isWishlisted) {
-      toast.success('Ditambahkan ke wishlist!');
-    } else {
-      toast.info('Dihapus dari wishlist');
     }
   };
 
@@ -214,18 +204,6 @@ export default function ProductDetailPage() {
               <h1 className="text-2xl lg:text-3xl font-extrabold leading-tight tracking-tight uppercase">
                 {product.name}
               </h1>
-
-              {/* Rating */}
-              <div className="flex items-center gap-4 mt-4">
-                <div className="flex items-center gap-0.5 text-slate-900">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star key={star} className={`w-4 h-4 ${star <= 4 ? 'fill-current' : ''}`} />
-                  ))}
-                </div>
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider underline cursor-pointer hover:text-amber-500">
-                  4.8 (128 Ulasan)
-                </span>
-              </div>
             </div>
 
             {/* Price */}
@@ -280,10 +258,10 @@ export default function ProductDetailPage() {
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900">Pilih Ukuran</h3>
-                  <button className="text-[11px] font-bold text-amber-500 uppercase underline tracking-wider flex items-center gap-1 hover:text-amber-600">
+                  <Link href="/size-guide" className="text-[11px] font-bold text-amber-500 uppercase underline tracking-wider flex items-center gap-1 hover:text-amber-600">
                     <Ruler className="w-4 h-4" />
                     Panduan Ukuran
-                  </button>
+                  </Link>
                 </div>
                 <div className="grid grid-cols-4 gap-3">
                   {sizes.map((size) => (
@@ -332,16 +310,6 @@ export default function ProductDetailPage() {
                 <ShoppingBag className="w-5 h-5" />
                 Tambah ke Keranjang
               </button>
-              <button
-                onClick={handleWishlist}
-                className={`w-full border font-bold py-4 lg:py-5 uppercase tracking-widest transition-all text-xs flex items-center justify-center gap-2 ${isWishlisted
-                    ? 'bg-rose-50 border-rose-200 text-rose-500'
-                    : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50'
-                  }`}
-              >
-                <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
-                {isWishlisted ? 'Di Wishlist' : 'Tambah ke Wishlist'}
-              </button>
             </div>
 
             {/* Stock Info */}
@@ -359,7 +327,6 @@ export default function ProductDetailPage() {
             { id: 'description', label: 'Deskripsi' },
             { id: 'material', label: 'Material & Perawatan' },
             { id: 'shipping', label: 'Pengiriman & Retur' },
-            { id: 'reviews', label: 'Ulasan (128)' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -375,8 +342,8 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Tab Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 py-8 lg:py-12 max-w-5xl mx-auto">
-          <div className="lg:col-span-7 space-y-6 lg:space-y-8">
+        <div className="py-8 lg:py-12 max-w-5xl mx-auto">
+          <div className="space-y-6 lg:space-y-8">
             {activeTab === 'description' && (
               <>
                 <h2 className="text-xl font-bold uppercase tracking-tight">{product.name}</h2>
@@ -437,49 +404,6 @@ export default function ProductDetailPage() {
                 </div>
               </>
             )}
-            {activeTab === 'reviews' && (
-              <>
-                <h2 className="text-xl font-bold uppercase tracking-tight">Ulasan Pelanggan</h2>
-                <p className="text-slate-500 text-sm">Fitur ulasan akan segera tersedia.</p>
-              </>
-            )}
-          </div>
-
-          {/* Rating Summary */}
-          <div className="lg:col-span-5 bg-slate-50 p-6 lg:p-8 rounded-xl h-fit">
-            <h3 className="text-sm font-bold uppercase tracking-widest mb-6 lg:mb-8">Kepuasan Pelanggan</h3>
-            <div className="flex items-center gap-6 mb-6 lg:mb-8">
-              <p className="text-4xl lg:text-5xl font-black">4.8</p>
-              <div className="space-y-1">
-                <div className="flex gap-0.5">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star key={star} className={`w-4 h-4 text-slate-900 ${star <= 4 ? 'fill-current' : ''}`} />
-                  ))}
-                </div>
-                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">128 Ulasan Terverifikasi</p>
-              </div>
-            </div>
-            <div className="space-y-3 lg:space-y-4">
-              {[
-                { stars: 5, percentage: 80 },
-                { stars: 4, percentage: 15 },
-                { stars: 3, percentage: 5 },
-              ].map((rating) => (
-                <div key={rating.stars} className="grid grid-cols-[30px_1fr_40px] items-center gap-4">
-                  <p className="text-xs font-bold uppercase">{rating.stars} ★</p>
-                  <div className="h-1 bg-slate-200 rounded-full">
-                    <div
-                      className="h-full bg-slate-900 rounded-full"
-                      style={{ width: `${rating.percentage}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] font-bold text-right">{rating.percentage}%</p>
-                </div>
-              ))}
-            </div>
-            <button className="w-full mt-8 lg:mt-10 py-4 border border-slate-900 font-bold text-xs uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all">
-              Tulis Ulasan
-            </button>
           </div>
         </div>
       </div>

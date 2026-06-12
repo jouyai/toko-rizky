@@ -107,6 +107,7 @@ export async function createTransaction(
         price: item.price,
         quantity: item.quantity,
         name: item.name,
+        image: item.image,
       })),
       midtransItems: params.midtransItems,
       customerDetails: params.customerDetails,

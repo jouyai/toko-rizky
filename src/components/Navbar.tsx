@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
 import { useCart } from '@/lib/CartContext';
 import { logoutUser } from '@/controllers/authController';
-import { Heart, Search, User, LogOut, Settings, FileText, Menu, X, ShoppingCart, LayoutDashboard } from 'lucide-react';
+import { Search, User, LogOut, FileText, Menu, X, ShoppingCart, LayoutDashboard } from 'lucide-react';
 import { useState } from 'react';
 import {
     DropdownMenu,
@@ -93,10 +93,6 @@ export default function Navbar() {
 
                     {/* Icons */}
                     <div className="flex items-center gap-1 md:gap-2">
-                        <Link href="/product" className="p-2 hover:text-amber-500 transition-colors hidden sm:flex">
-                            <Heart className="w-5 h-5" />
-                        </Link>
-
                         <Link href="/cart" className="p-2 hover:text-amber-500 transition-colors relative">
                             <ShoppingCart className="w-5 h-5" />
                             {itemCount > 0 && (
@@ -141,13 +137,13 @@ export default function Navbar() {
                                     )}
 
                                     <DropdownMenuItem asChild>
-                                        <Link href="/profile" className="cursor-pointer flex items-center gap-2 text-slate-600 hover:text-slate-900 focus:bg-slate-50 rounded-lg px-2 py-2">
+                                        <Link href="/profile?tab=profile" className="cursor-pointer flex items-center gap-2 text-slate-600 hover:text-slate-900 focus:bg-slate-50 rounded-lg px-2 py-2">
                                             <User className="w-4 h-4" />
                                             <span>Profile Saya</span>
                                         </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem asChild>
-                                        <Link href="/profile" className="cursor-pointer flex items-center gap-2 text-slate-600 hover:text-slate-900 focus:bg-slate-50 rounded-lg px-2 py-2">
+                                        <Link href="/profile?tab=orders" className="cursor-pointer flex items-center gap-2 text-slate-600 hover:text-slate-900 focus:bg-slate-50 rounded-lg px-2 py-2">
                                             <FileText className="w-4 h-4" />
                                             <span>Pesanan Saya</span>
                                         </Link>

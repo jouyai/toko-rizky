@@ -28,7 +28,7 @@ export default function ProfilePage() {
                         <h2 className="text-xl font-bold text-slate-900">{userProfile?.name || 'Admin User'}</h2>
                         <p className="text-slate-500 text-sm">{user?.email}</p>
                         <div className="mt-4 inline-flex px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full uppercase tracking-wider">
-                            Super Admin
+                            {userProfile?.role === 'admin' ? 'Administrator' : (userProfile?.role || 'Admin')}
                         </div>
                     </div>
                 </Card>

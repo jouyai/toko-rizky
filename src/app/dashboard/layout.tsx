@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from '@/lib/AuthContext';
 import { logoutUser } from '@/controllers/authController';
-import { useState } from 'react';
+import { listenOrders } from '@/controllers/orderController';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   Package,
@@ -48,8 +49,19 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const { user, userProfile } = useAuth();
+
+  const roleLabel = userProfile?.role === 'admin' ? 'Administrator' : (userProfile?.role || 'Admin');
+
+  useEffect(() => {
+    const unsubscribe = listenOrders((orders) => {
+      const pending = orders.filter((o: any) => o.status?.toLowerCase() === 'pending').length;
+      setPendingCount(pending);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     await logoutUser();
@@ -130,10 +142,18 @@ export default function DashboardLayout({
 
             <div className="flex items-center gap-4 sm:gap-6">
               <div className="flex items-center gap-2">
-                <button className="p-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors relative">
+                <Link
+                  href="/dashboard/orders"
+                  title={pendingCount > 0 ? `${pendingCount} pesanan menunggu` : 'Tidak ada pesanan menunggu'}
+                  className="p-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors relative inline-flex"
+                >
                   <Bell className="w-5 h-5" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                </button>
+                  {pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-white flex items-center justify-center">
+                      {pendingCount > 9 ? '9+' : pendingCount}
+                    </span>
+                  )}
+                </Link>
               </div>
 
               {/* User Profile Dropdown */}
@@ -144,7 +164,7 @@ export default function DashboardLayout({
                       <p className="text-sm font-bold text-slate-900 leading-none">
                         {userProfile?.name || user?.email?.split('@')[0] || 'Admin'}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">Super Admin</p>
+                      <p className="text-xs text-slate-500 mt-1">{roleLabel}</p>
                     </div>
                     <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden relative">
                       {user?.photoURL ? (

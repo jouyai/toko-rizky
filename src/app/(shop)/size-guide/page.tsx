@@ -369,10 +369,10 @@ export default function SizeGuidePage() {
                         <div className="relative z-10">
                             <h4 className="font-bold mb-2 text-lg">Masih bingung?</h4>
                             <p className="text-sm text-slate-300 mb-6">Konsultasikan ukuran dengan stylist kami atau lihat review pembeli lain.</p>
-                            <button className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20">
+                            <Link href="/contact" className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20">
                                 <MessagesSquare className="w-4 h-4" />
                                 Chat CS Sekarang
-                            </button>
+                            </Link>
                         </div>
                         {/* Abstract Background Element */}
                         <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl"></div>

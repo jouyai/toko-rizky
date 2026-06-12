@@ -1,62 +1,103 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getStoreSettings, saveStoreSettings } from '@/controllers/settingsController';
 
 export default function SettingsPage() {
+    const [storeName, setStoreName] = useState('Toko Rizky');
+    const [adminEmail, setAdminEmail] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        getStoreSettings()
+            .then((settings) => {
+                if (settings) {
+                    setStoreName(settings.storeName ?? 'Toko Rizky');
+                    setAdminEmail(settings.adminEmail ?? '');
+                }
+            })
+            .catch((err) => console.error('Gagal memuat pengaturan:', err))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await saveStoreSettings({ storeName: storeName.trim(), adminEmail: adminEmail.trim() });
+            toast.success('Pengaturan berhasil disimpan.');
+        } catch (err) {
+            console.error(err);
+            toast.error('Gagal menyimpan pengaturan.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <div>
                 <h1 className="text-3xl font-black text-slate-900 tracking-tight">Settings</h1>
-                <p className="text-slate-500 font-medium">Manage your dashboard preferences</p>
+                <p className="text-slate-500 font-medium">Kelola informasi toko Anda</p>
             </div>
 
             <Card className="shadow-sm border-slate-100 rounded-2xl">
                 <CardHeader>
-                    <CardTitle>General Settings</CardTitle>
-                    <CardDescription>Configure general dashboard information.</CardDescription>
+                    <CardTitle>Pengaturan Umum</CardTitle>
+                    <CardDescription>Informasi dasar toko yang ditampilkan di dashboard.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="store-name">Store Name</Label>
-                        <Input id="store-name" defaultValue="Toko Rizky" className="max-w-md" disabled />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="admin-email">Admin Email</Label>
-                        <Input id="admin-email" defaultValue="admin@tokorizky.com" className="max-w-md" disabled />
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border-slate-100 rounded-2xl">
-                <CardHeader>
-                    <CardTitle>Notifications</CardTitle>
-                    <CardDescription>Manage how you receive notifications.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                        <div className="space-y-0.5">
-                            <Label className="text-base font-bold">Email Notifications</Label>
-                            <p className="text-sm text-slate-500">Receive daily summary emails</p>
+                    {loading ? (
+                        <div className="flex items-center gap-2 text-slate-500 text-sm py-4">
+                            <Loader2 className="w-4 h-4 animate-spin" /> Memuat pengaturan...
                         </div>
-                        <span className="text-xs text-slate-400 px-3 py-1 bg-slate-200 rounded-full font-medium">Coming Soon</span>
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                        <div className="space-y-0.5">
-                            <Label className="text-base font-bold">Order Alerts</Label>
-                            <p className="text-sm text-slate-500">Get notified when new orders arrive</p>
-                        </div>
-                        <span className="text-xs text-slate-400 px-3 py-1 bg-slate-200 rounded-full font-medium">Coming Soon</span>
-                    </div>
+                    ) : (
+                        <>
+                            <div className="space-y-2">
+                                <Label htmlFor="store-name">Nama Toko</Label>
+                                <Input
+                                    id="store-name"
+                                    value={storeName}
+                                    onChange={(e) => setStoreName(e.target.value)}
+                                    className="max-w-md"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="admin-email">Email Admin</Label>
+                                <Input
+                                    id="admin-email"
+                                    type="email"
+                                    value={adminEmail}
+                                    onChange={(e) => setAdminEmail(e.target.value)}
+                                    placeholder="admin@tokorizky.com"
+                                    className="max-w-md"
+                                />
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
 
             <div className="flex justify-end gap-4">
-                <Button variant="outline">Cancel</Button>
-                <Button className="bg-slate-900 hover:bg-slate-800 text-white" onClick={() => toast.info('Settings feature coming soon.')}>Save Changes</Button>
+                <Button
+                    className="bg-slate-900 hover:bg-slate-800 text-white"
+                    onClick={handleSave}
+                    disabled={loading || saving}
+                >
+                    {saving ? (
+                        <span className="flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...
+                        </span>
+                    ) : (
+                        'Simpan Perubahan'
+                    )}
+                </Button>
             </div>
         </div>
     );

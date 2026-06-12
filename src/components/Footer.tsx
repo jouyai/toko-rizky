@@ -1,23 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import { Globe, Smartphone, Mail, Instagram, Facebook, Twitter } from 'lucide-react';
+import { Mail, Instagram, Facebook, Twitter } from 'lucide-react';
 
 export default function Footer() {
-  const [email, setEmail] = useState('');
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle newsletter subscription
-    console.log('Subscribe:', email);
-    setEmail('');
-  };
-
   return (
     <footer className="bg-white border-t border-slate-100 pt-16 md:pt-20 pb-8 md:pb-10">
       <div className="max-w-[1440px] mx-auto px-4 md:px-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-16 mb-16 md:mb-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 lg:gap-16 mb-16 md:mb-20">
           {/* Brand Column */}
           <div className="space-y-6">
             <h2 className="text-xl font-black uppercase tracking-tighter">Toko Rizky</h2>
@@ -109,33 +99,12 @@ export default function Footer() {
                   Tentang Kami
                 </Link>
               </li>
+              <li>
+                <Link href="/faq" className="hover:text-slate-900 transition-colors">
+                  FAQ
+                </Link>
+              </li>
             </ul>
-          </div>
-
-          {/* Newsletter Column */}
-          <div>
-            <h4 className="font-black mb-6 md:mb-8 text-[10px] uppercase tracking-[0.2em]">Newsletter</h4>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-6">
-              Daftar untuk akses awal dan pratinjau koleksi terbaru.
-            </p>
-            <form onSubmit={handleSubscribe}>
-              <div className="flex border-b border-slate-200 pb-2 focus-within:border-slate-900 transition-colors">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Alamat Email"
-                  required
-                  className="flex-1 bg-transparent border-none text-[10px] font-bold uppercase tracking-widest focus:ring-0 px-0 placeholder:text-slate-400"
-                />
-                <button
-                  type="submit"
-                  className="text-[10px] font-black uppercase tracking-widest hover:text-amber-500 transition-colors"
-                >
-                  Daftar
-                </button>
-              </div>
-            </form>
           </div>
         </div>
 

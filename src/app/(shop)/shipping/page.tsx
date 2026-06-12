@@ -174,10 +174,10 @@ export default function ShippingPage() {
             <div className="flex flex-col items-center justify-center text-center py-12 border-t border-slate-200">
                 <p className="text-lg font-medium text-slate-600 mb-8">Masih ada pertanyaan tentang pengiriman?</p>
                 <div className="flex flex-wrap justify-center gap-4">
-                    <button className="flex min-w-[180px] items-center justify-center gap-2 rounded-xl border-2 border-slate-200 h-12 px-6 bg-white text-slate-700 text-sm font-bold uppercase tracking-wide hover:border-slate-300 hover:bg-slate-50 transition-all">
+                    <Link href="/contact" className="flex min-w-[180px] items-center justify-center gap-2 rounded-xl border-2 border-slate-200 h-12 px-6 bg-white text-slate-700 text-sm font-bold uppercase tracking-wide hover:border-slate-300 hover:bg-slate-50 transition-all">
                         <Mail className="w-4 h-4 text-amber-500" />
                         Hubungi Kami
-                    </button>
+                    </Link>
                 </div>
             </div>
         </main>

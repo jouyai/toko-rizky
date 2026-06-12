@@ -21,14 +21,11 @@ import {
   Pencil,
   Package,
   User,
-  MapPin,
-  CreditCard,
   LogOut,
   Search,
   ChevronLeft,
   ChevronRight,
   Eye,
-  ChevronDown,
   ChevronUp
 } from 'lucide-react';
 
@@ -56,7 +53,7 @@ export default function ProfilePage() {
   // State for order history
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
-  const [activeTab, setActiveTab] = useState<'orders' | 'profile' | 'addresses' | 'payment'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'profile'>('orders');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -69,6 +66,14 @@ export default function ProfilePage() {
       router.push('/login');
     }
   }, [user, router]);
+
+  // Open the tab requested via ?tab= (used by navbar dropdown links)
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab === 'profile' || tab === 'orders') {
+      setActiveTab(tab);
+    }
+  }, []);
 
   // Fill edit form with current name
   useEffect(() => {
@@ -172,26 +177,6 @@ export default function ProfilePage() {
               >
                 <Package className="w-5 h-5" />
                 <span className="text-sm font-medium">Pesanan</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('addresses')}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left ${activeTab === 'addresses'
-                  ? 'bg-amber-50 text-amber-600'
-                  : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-              >
-                <MapPin className="w-5 h-5" />
-                <span className="text-sm font-medium">Alamat</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('payment')}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left ${activeTab === 'payment'
-                  ? 'bg-amber-50 text-amber-600'
-                  : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-              >
-                <CreditCard className="w-5 h-5" />
-                <span className="text-sm font-medium">Pembayaran</span>
               </button>
               <div className="my-2 border-t border-slate-100"></div>
               <button
@@ -495,34 +480,6 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-              </div>
-            </>
-          )}
-
-          {/* Addresses Tab */}
-          {activeTab === 'addresses' && (
-            <>
-              <div className="mb-8">
-                <h2 className="text-2xl lg:text-3xl font-black tracking-tight mb-2 uppercase">Alamat Saya</h2>
-                <p className="text-slate-500 text-sm">Kelola alamat pengiriman Anda.</p>
-              </div>
-              <div className="text-center py-20 bg-white rounded-xl border border-slate-100">
-                <MapPin className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500 font-medium">Fitur alamat akan segera tersedia</p>
-              </div>
-            </>
-          )}
-
-          {/* Payment Tab */}
-          {activeTab === 'payment' && (
-            <>
-              <div className="mb-8">
-                <h2 className="text-2xl lg:text-3xl font-black tracking-tight mb-2 uppercase">Metode Pembayaran</h2>
-                <p className="text-slate-500 text-sm">Kelola metode pembayaran Anda.</p>
-              </div>
-              <div className="text-center py-20 bg-white rounded-xl border border-slate-100">
-                <CreditCard className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500 font-medium">Fitur pembayaran akan segera tersedia</p>
               </div>
             </>
           )}

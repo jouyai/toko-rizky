@@ -19,6 +19,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Nomor WhatsApp tujuan (format internasional tanpa + / 0), diambil dari env.
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '';
+
 export default function ContactPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -35,21 +38,32 @@ export default function ContactPage() {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, subject, message }),
+      });
 
-    setLoading(false);
-    setSubmitted(true);
-    toast.success('Pesan Anda telah terkirim!');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Gagal mengirim pesan.');
 
-    // Reset form after delay
-    setTimeout(() => {
-      setName('');
-      setEmail('');
-      setSubject('Order Inquiry');
-      setMessage('');
-      setSubmitted(false);
-    }, 3000);
+      setSubmitted(true);
+      toast.success('Pesan Anda telah terkirim!');
+
+      // Reset form after delay
+      setTimeout(() => {
+        setName('');
+        setEmail('');
+        setSubject('Order Inquiry');
+        setMessage('');
+        setSubmitted(false);
+      }, 3000);
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal mengirim pesan. Coba lagi.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -176,33 +190,9 @@ export default function ContactPage() {
             <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight">Hubungi Langsung</h3>
 
             <div className="flex flex-col gap-5">
-              {/* Email */}
-              <div className="flex items-start gap-4 p-4 bg-white rounded-xl border border-slate-100">
-                <div className="bg-amber-100 p-3 rounded-lg text-amber-600">
-                  <Mail className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-bold text-slate-900">Email Kami</p>
-                  <p className="text-slate-500 text-sm">support@tokorizky.com</p>
-                  <p className="text-amber-500 text-xs font-bold mt-1">Respon dalam 24 jam</p>
-                </div>
-              </div>
-
-              {/* Phone */}
-              <div className="flex items-start gap-4 p-4 bg-white rounded-xl border border-slate-100">
-                <div className="bg-blue-100 p-3 rounded-lg text-blue-600">
-                  <Phone className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-bold text-slate-900">Telepon</p>
-                  <p className="text-slate-500 text-sm">+62 21 555 0123</p>
-                  <p className="text-slate-400 text-xs mt-1">Senin - Jumat, 09:00 - 18:00 WIB</p>
-                </div>
-              </div>
-
               {/* WhatsApp */}
               <a
-                href="https://wa.me/6281234567890"
+                href={`https://wa.me/${WHATSAPP_NUMBER}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-start gap-4 p-4 bg-white rounded-xl border border-slate-100 hover:border-green-500 transition-colors group"
@@ -217,71 +207,6 @@ export default function ContactPage() {
                     Chat Sekarang <ExternalLink className="w-3 h-3" />
                   </span>
                 </div>
-              </a>
-            </div>
-          </div>
-
-          {/* Map & Location */}
-          <div className="flex flex-col gap-4">
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 uppercase tracking-tight">
-              <MapPin className="w-5 h-5 text-amber-500" /> Toko Utama Kami
-            </h3>
-            <div className="w-full h-48 rounded-xl overflow-hidden shadow-inner bg-slate-200 relative">
-              {/* Simulated Map Pattern */}
-              <div
-                className="absolute inset-0 bg-slate-100 flex items-center justify-center"
-                style={{
-                  backgroundImage: 'radial-gradient(#f59e0b 0.5px, transparent 0.5px), radial-gradient(#f59e0b 0.5px, #f8fafc 0.5px)',
-                  backgroundSize: '20px 20px',
-                  backgroundPosition: '0 0, 10px 10px'
-                }}
-              >
-                <div className="bg-white p-3 rounded-full shadow-lg border-2 border-amber-500 animate-bounce">
-                  <MapPin className="w-6 h-6 text-amber-500" />
-                </div>
-              </div>
-              <a
-                href="https://maps.google.com/?q=Jakarta+Selatan"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute bottom-3 right-3 bg-white px-4 py-2 rounded-lg shadow-md text-xs font-bold text-amber-500 hover:bg-amber-500 hover:text-white transition-all flex items-center gap-1"
-              >
-                Buka di Maps <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-            <p className="text-slate-500 text-sm">
-              Jl. Sudirman No. 45, Kebayoran Baru<br />
-              Jakarta Selatan, 12190, Indonesia
-            </p>
-          </div>
-
-          {/* Social Media */}
-          <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
-            <p className="font-bold text-slate-900 uppercase tracking-widest text-xs">Ikuti Kami</p>
-            <div className="flex gap-3">
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:border-amber-500 transition-all"
-              >
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:border-amber-500 transition-all"
-              >
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:border-amber-500 transition-all"
-              >
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:border-amber-500 transition-all"
-              >
-                <Youtube className="w-5 h-5" />
               </a>
             </div>
           </div>
